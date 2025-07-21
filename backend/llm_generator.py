@@ -4,7 +4,7 @@ import asyncio
 import random
 
 
-# --- OLLAMA GENERATOR (Corrected Version) ---
+# --- OLLAMA GENERATOR  ---
 def get_llm_prompt(label_to_generate: str) -> str:
     """
     Constructs a clearer, more focused prompt for a small model.
@@ -12,7 +12,6 @@ def get_llm_prompt(label_to_generate: str) -> str:
     """
     base_prompt = "You are a data generation assistant. Create a single, short, realistic SMS text message."
     
-    # --- CHANGE: Drastically improved prompts to prevent repetition and literalism ---
     if label_to_generate == "spam":
         scenarios = [
             # --- Financial & Account Security Scams ---
@@ -117,7 +116,6 @@ def get_llm_prompt(label_to_generate: str) -> str:
     2. Do NOT use the literal words 'ham' or 'spam' in the message text itself.
     """
 
-# (The rest of the file remains the same as the previous correct version)
 async def generate_with_ollama(model: str, label_to_generate: str | None = None):
     actual_label = label_to_generate if label_to_generate else random.choice(['spam', 'ham'])
     prompt = get_llm_prompt(actual_label)
@@ -152,8 +150,6 @@ async def generate_with_lmstudio(model: str, label_to_generate: str | None = Non
     # LM Studio uses an OpenAI-compatible endpoint.
     LM_STUDIO_URL = "http://localhost:1234/v1/chat/completions"
     
-    # The payload is also OpenAI-compatible.
-    # The 'model' parameter is often ignored if a model is pre-loaded in the UI.
     payload = {
         "model": model, 
         "messages": [{"role": "user", "content": prompt}],
@@ -162,7 +158,6 @@ async def generate_with_lmstudio(model: str, label_to_generate: str | None = Non
 
     try:
         yield "Sending request to LM Studio... 💻"
-        # API key is not needed for the local server.
         response = requests.post(LM_STUDIO_URL, json=payload, timeout=120)
         response.raise_for_status()
 
@@ -182,7 +177,6 @@ async def generate_with_lmstudio(model: str, label_to_generate: str | None = Non
     except Exception as e:
         yield f"An unexpected error occurred: {e}"
 
-# --- OPENROUTER GENERATOR (No changes needed) ---
 async def generate_with_openrouter(model: str, api_key: str, label_to_generate: str | None = None):
     # This function is correct and remains the same.
     OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
