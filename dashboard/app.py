@@ -136,7 +136,7 @@ with training_col:
 st.divider()
 
 
-# SECTION 3: LLM DATA DISTILLATION (Final Version)
+# SECTION 3: LLM DATA DISTILLATION
 st.header("3. Augment Data with an LLM")
 st.write("Automatically generate new training data to improve the model's performance and help it adapt to new types of messages.")
 
@@ -144,25 +144,34 @@ with st.container():
     use_llm = st.toggle("Enable LLM Data Generation Controls")
 
     if use_llm:
-        # --- FIX: Added LM Studio to the list of providers ---
-        provider = st.radio(
-            "Choose LLM Provider", 
-            ["Ollama (Local)", "LM Studio (Local)", "OpenRouter (Cloud)"], 
-            horizontal=True, 
+        # --- FIX: Use a dictionary to map display names to API provider names ---
+        PROVIDER_MAP = {
+            "Ollama (Local)": "ollama",
+            "LM Studio (Local)": "lmstudio",
+            "OpenRouter (Cloud)": "openrouter"
+        }
+        
+        provider_display_name = st.radio(
+            "Choose LLM Provider",
+            PROVIDER_MAP.keys(), # Show user-friendly names
+            horizontal=True,
             key="provider"
         )
         
-        # --- FIX: Updated logic to handle inputs for all three providers ---
-        if provider == "Ollama (Local)":
+        # Get the correct API provider name from the map
+        provider_api_name = PROVIDER_MAP[provider_display_name]
+        
+        # Updated logic to handle inputs for all three providers
+        if provider_api_name == "ollama":
             model_id = st.text_input("Ollama Model ID", "llama3", key="ollama_model")
             api_key = ""
-        elif provider == "LM Studio (Local)":
+        elif provider_api_name == "lmstudio":
             model_id = st.text_input(
-                "Model Identifier (usually ignored)", "local-model", key="lmstudio_model", 
+                "Model Identifier (usually ignored)", "local-model", key="lmstudio_model",
                 help="LM Studio typically uses the model loaded in the UI, so this can be left as is."
             )
-            api_key = "" # No API key needed
-        else: # OpenRouter
+            api_key = ""
+        else: # openrouter
             model_id = st.text_input("OpenRouter Model ID", "mistralai/mistral-7b-instruct:free", key="or_model")
             api_key = st.text_input("OpenRouter API Key", type="password", key="or_api_key")
 
@@ -193,9 +202,9 @@ with st.container():
 
             status_box = st.empty()
             
+            # --- FIX: Use the correct provider_api_name in the payload ---
             payload = {
-                # This logic correctly gets the provider name for the API call
-                "provider": provider.split(" ")[0].lower(),
+                "provider": provider_api_name,
                 "model": model_id,
                 "api_key": api_key,
                 "label_to_generate": st.session_state.generation_type
