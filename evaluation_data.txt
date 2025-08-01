@@ -1,0 +1,92 @@
+ham,Hey, are we still meeting for lunch today?
+spam,WINNER!! You've been selected for a $1000 gift card. Click here to claim!
+ham,Can you send me the report by 5 PM?
+spam,Your account has been suspended. Verify now to regain access.
+ham,Don't forget to bring the documents tomorrow.
+spam,You've won a free iPhone! Just pay shipping. Act now!
+ham,See you at the meeting in 10 minutes.
+spam,URGENT: Your bank account has been compromised.
+ham,Let's reschedule our call to tomorrow.
+spam,Make money fast with this one weird trick.
+ham,Thanks for the help yesterday.
+spam,Your subscription is about to expire. Renew now.
+ham,I'll be late by about 15 minutes.
+spam,You have a secret admirer. Click to find out who!
+ham,Did you get my email about the project?
+spam,Claim your free $50 Amazon gift card now.
+ham,We're almost ready to present. Good job so far.
+spam,This is your final notice! Call now or face consequences.
+ham,Let me know if you need anything from the store.
+spam,Get a free vacation to Hawaii today!
+ham,The meeting has been moved to 3 PM.
+spam,You've been approved for a loan. No credit check needed.
+ham,Please review the attached file and give feedback.
+spam,You're a winner! Collect your prize now.
+ham,Let's grab coffee after work sometime.
+spam,Your parcel has been delayed. Click for details.
+ham,Can we talk about the project later today?
+spam,Free gift for a limited time only. Don't miss out!
+ham,The code is working as expected.
+spam,You're pre-approved for a credit card with 0% interest.
+ham,See you at the team event on Friday.
+spam,Act now! Triple your income from home.
+ham,I'm on my way, should be there in 5.
+spam,Your warranty has expired. Renew today to save.
+ham,Let me know if you need help with that.
+spam,This is not a scam. You really won $10,000.
+ham,Great job on the presentation today.
+spam,Get 10,000 reward points for free. Limited offer.
+ham,Can you pick up some snacks on your way?
+spam,Your account will be deleted unless you verify now.
+ham,The test results are in — everything passed.
+spam,You've been chosen to receive a free trial.
+ham,I'm heading out for lunch. Back in 30.
+spam,Click here to stop missing out on huge savings.
+ham,Just confirming our meeting time.
+spam,This is urgent: you must update your password now.
+ham,The app is crashing on startup. Can you check?
+spam,Get rich quick — guaranteed method inside.
+ham,Thanks for covering for me yesterday.
+spam,You've won a luxury car! Just pay taxes to claim it.
+ham,We need to finalize the design by tomorrow.
+spam,You've been approved for a mortgage. Call now!
+ham,Let me know when you get this.
+spam,Free access to premium content. No credit card needed.
+ham,The client is happy with the changes.
+spam,Your account is at risk. Click to secure it now.
+ham,Can you send me the latest version of the file?
+spam,This is the last chance to claim your prize.
+ham,We're done for the day. Great work team!
+spam,You're missing out on amazing deals. Shop now.
+ham,Let's go over the feedback next week.
+spam,You've been selected for an exclusive offer.
+ham,The model is performing well now.
+spam,Get unlimited calls and texts for $1/month.
+ham,Let's catch up soon — it's been a while.
+spam,You've received a secret message. Click to read.
+ham,The system is back online.
+spam,Claim your free crypto today — limited spots!
+ham,Thanks again for your help.
+spam,Your prize is waiting. Don't miss out!
+ham,We're almost done with the testing phase.
+spam,You're a lucky winner. Collect your gift now.
+ham,Let me know if you have any questions.
+spam,You've been offered a job from home. Apply now!
+ham,The deadline has been extended to Friday.
+spam,Get a free iPad with no strings attached.
+ham,Looks good. Ready to deploy?
+spam,You've been shortlisted for a scholarship.
+ham,Let's schedule the next sprint planning.
+spam,This is your lucky day! Claim your reward.
+ham,See you at the standup tomorrow.
+spam,You're eligible for a special discount. Use code NOW10.
+ham,The error has been fixed.
+spam,Click here to unlock your surprise gift.
+ham,Great progress today. Keep it up!
+spam,You've been chosen to test a new product — free.
+ham,Let's review the final draft before sending.
+spam,You're a winner! Collect your cash prize now.
+ham,All set for the demo tomorrow.
+spam,Get 100% cashback on your next purchase.
+ham,Let me know if you need any clarification.
+spam,You've been approved for a free trial. No payment needed.
