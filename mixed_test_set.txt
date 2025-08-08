@@ -1,0 +1,150 @@
+ham, Your access to the university library database has been renewed for another year.
+spam, Congratulations! You’ve won a $1000 Walmart gift card. Click here to claim now!
+ham, Click to view your updated lab schedule for the upcoming semester.
+spam, You are the lucky winner of an iPhone 15! No purchase necessary. Claim now!
+ham, Your monthly subscription to the academic journal will renew on the 1st.
+ham, Please verify your identity for the upcoming grant audit with the research office.
+spam, Earn $5000 per week from home! No experience needed. Click to join now!
+ham, A reminder: Your free trial of the statistical software ends in 48 hours.
+ham, Your department’s budget report is ready for review in the finance portal.
+spam, Urgent: Your account will be deleted! Click to verify your email immediately!
+ham, You’ve been invited to a complimentary faculty development workshop.
+spam, Make money fast with this one weird trick! Click here before it’s gone!
+ham, Click to access your personalized teaching evaluation summary.
+ham, Your access to the secure research server requires re-authentication.
+spam, Limited time offer: Buy one, get one free on all items! Shop now!
+ham, Your manuscript has been accepted for publication in the Journal of Science.
+spam, You have 1 unread message from Facebook! Click to view it now!
+ham, The university is offering free flu shots to staff. Schedule your appointment.
+ham, Your account password expires in 3 days. Please reset it via the portal.
+spam, You’ve been selected for a secret government survey! Earn $200 instantly!
+ham, Click to confirm your attendance at the dissertation defense on Friday.
+ham, Your research funding has been approved. Review the terms and disbursement schedule.
+spam, Act now! Your exclusive discount expires in 1 hour! Don’t miss out!
+ham, Your access to the alumni career network is active. Log in to explore opportunities.
+ham, Please complete your mandatory cybersecurity training by end of week.
+spam, You won a cruise to the Bahamas! Just pay shipping and handling!
+ham, Your free trial of the citation tool ends tomorrow. Students may renew via library.
+ham, Click to download your official transcript from the registrar.
+spam, This is not a scam! You’ve inherited $2 million from a distant relative!
+ham, Your account has been flagged for suspicious login activity. Verify now.
+ham, You are eligible for a free certification in research data management.
+spam, Watch celebrities naked! Click here for free access!
+ham, Your subscription includes a complimentary webinar series. Register now.
+ham, Urgent: Update your emergency contact details in the employee portal.
+spam, Get rich overnight with Bitcoin! Invest $50 and earn $5000!
+ham, Click to view your updated office hours schedule.
+ham, Your access to the clinical trial database requires annual re-verification.
+spam, You’re overdue for a warranty extension! Avoid penalties and click now!
+ham, Your grant application has been approved. View award details in the portal.
+ham, The free mental health workshop for staff starts in 15 minutes. Join now.
+spam, Meet singles in your area! They’re waiting for YOU! Click here!
+ham, Your account requires two-factor authentication setup. Do not delay.
+ham, Click to submit your final thesis to the graduate school system.
+spam, You’ve been pre-approved for a loan with 0% interest! No credit check!
+ham, Your access to the high-performance computing cluster is active.
+ham, You’ve been assigned a new mentor in the faculty development program.
+spam, Miracle weight loss pill! Lose 30 lbs in 1 week! Order now!
+ham, Your department’s software license renews automatically next month.
+ham, Click to access your personalized retirement planning session.
+spam, Your package couldn’t be delivered! Click to reschedule and pay fees!
+ham, Your research ethics certification expires in 7 days. Renew online.
+ham, You are invited to a private seminar on policy innovation.
+spam, Unlock your phone’s hidden power! Click to download the secret app!
+ham, Your account will be deactivated unless you verify your affiliation.
+ham, Click to download the final agenda for the faculty retreat.
+spam, Get 500% more energy with this one supplement! Try it free!
+ham, Your manuscript revision is due in 10 days. Submit via the journal portal.
+ham, Your access to the encrypted file server will be suspended unless confirmed.
+spam, You’re the 1,000,000th visitor! Claim your prize now!
+ham, Click to confirm your participation in the peer review panel.
+ham, Your subscription to the journal includes a free special issue. Download it.
+spam, Free money! Government gives away cash! Click to apply now!
+ham, Your account has unused credits. Apply them to your next renewal.
+ham, The annual compliance training is now available. Complete within 14 days.
+spam, You’ve been charged $9.99! Cancel now or lose $300 monthly!
+ham, Click to view your updated lab equipment reservation.
+ham, Your free access to the engineering simulation tool ends in 3 days.
+spam, Lose belly fat fast! Doctors hate this trick! Click here!
+ham, Your access to the alumni networking platform is live.
+ham, Urgent: Submit your course syllabus for accreditation review.
+spam, You’ve been matched with a secret admirer! Click to chat now!
+ham, Your account requires email confirmation for official notifications.
+ham, Click to access your personalized teaching feedback report.
+spam, Act fast! Your exclusive offer expires in 10 minutes!
+ham, Your department’s annual report is ready for review.
+ham, You are eligible for a free professional certification through alumni services.
+spam, You’re winning a free iPad! Just complete this quick survey!
+ham, Click to download your official employment verification letter.
+ham, Your access to the secure document repository requires re-authentication.
+spam, Your computer is infected! Click here to scan and fix now!
+ham, Your grant progress report is due in 5 days. Submit via the portal.
+ham, Click to confirm your travel reimbursement request.
+spam, Get a free vacation! Just pay $49.95 in fees! Limited spots!
+ham, Your account has been verified for access to restricted research data.
+ham, Your manuscript proof is ready. Approve or correct via the system.
+spam, You’ve been charged for adult content! Cancel now to stop billing!
+ham, Click to access your personalized career development roadmap.
+ham, Your access to the video conferencing suite is renewed.
+spam, You’ve won a free gift card! Just enter your credit card to verify!
+ham, Your department’s grant proposal is under review. Track status online.
+ham, Click to download your official letter of collaboration.
+spam, Watch this video to make $1000 today! Guaranteed!
+ham, Your account requires password reset due to policy update.
+ham, You are invited to a free workshop on inclusive pedagogy.
+spam, You’re eligible for a $5000 grant! No repayment ever! Click now!
+ham, Click to review your updated research compliance checklist.
+ham, Your subscription includes a free CME credit course. Activate now.
+spam, This message will self-destruct in 10 seconds! Click now!
+ham, Your access to the historical archives is live. Download the collection.
+ham, Click to confirm your attendance at the PhD qualifying exam.
+spam, You’ve been selected for a top-secret income opportunity!
+ham, Your account has been enrolled in the cybersecurity program.
+ham, Your department’s annual safety inspection is scheduled.
+spam, Free access to premium porn! No credit card needed! Click here!
+ham, Click to access your onboarding checklist for new faculty.
+ham, Your grant reporting deadline is in 3 days. Submit now.
+spam, You’ve been charged $39.99! Cancel now or be billed $199.99/month!
+ham, Your access to the collaborative writing platform is approved.
+ham, Click to confirm your role in the upcoming accreditation visit.
+spam, You’re one step away from winning a Tesla! Click to claim!
+ham, Your account requires annual re-verification for compliance.
+ham, You are eligible for a free consultation with the writing center.
+spam, Get rid of wrinkles overnight! Click to see the shocking results!
+ham, Click to download your official teaching award nomination.
+ham, Your access to the digital scholarship platform is renewed.
+spam, You’ve been pre-approved for a credit card with $10,000 limit!
+ham, Your manuscript peer review is due in 7 days. Submit comments.
+ham, Click to confirm your participation in the tenure review committee.
+spam, You’ve been charged for a subscription! Cancel now to stop charges!
+ham, Your account has been approved for elevated cloud storage.
+ham, You are invited to a free session on research funding trends.
+spam, You’re the lucky winner! Claim your $500 Amazon gift card!
+ham, Click to access your mentoring feedback report.
+ham, Your access to the faculty senate portal is active.
+spam, Click here for free Bitcoin! No investment needed!
+ham, Your manuscript final version is ready. Submit for typesetting.
+ham, Click to confirm your participation in the curriculum mapping project.
+spam, You’ve been matched with local singles! Click to view profiles!
+ham, Your account requires re-authentication for SSO update.
+ham, You are eligible for a free training on responsible conduct of research.
+spam, You’ve been charged $29.99! Stop recurring billing now!
+ham, Click to download your dissertation timeline.
+ham, Your access to the faculty mentorship program is confirmed.
+spam, You’ve won a free iPhone! Just pay shipping! Click now!
+ham, Your free trial of the literature review tool ends tomorrow.
+ham, Click to confirm your role in the IRB.
+spam, You’re eligible for a government stimulus check! Claim now!
+ham, Your account has been enrolled in the wellness initiative.
+ham, Your department’s strategic plan is open for feedback.
+spam, Watch this video to unlock hidden phone features! Click now!
+ham, Click to download your teaching evaluation summary.
+ham, Your access to the secure file transfer system is active.
+spam, You’ve been charged for adult content! Cancel now!
+ham, Your subscription includes a free research handbook access code.
+ham, Click to review your lab equipment calibration schedule.
+spam, You’ve been selected for a secret income system! Click to learn!
+ham, Your account has been verified for access to restricted publications.
+ham, You are invited to a free workshop on open-access publishing.
+spam, You’ve won a free cruise! Just pay $99 in taxes and fees!
+ham, Click to access your grant budget forecast.

@@ -1,0 +1,29 @@
+{
+    "models": {
+        "nb_multinomial_20250803_222542": {
+            "creation_date": "2025-08-03T22:25:42.356187",
+            "pipeline_file": "nb_multinomial_20250803_222542_pipeline.joblib",
+            "encoder_file": "nb_multinomial_20250803_222542_encoder.joblib",
+            "performance_metrics": null
+        },
+        "nb_multinomial_20250804_075009": {
+            "creation_date": "2025-08-04T07:50:10.250917",
+            "pipeline_file": "nb_multinomial_20250804_075009_pipeline.joblib",
+            "encoder_file": "nb_multinomial_20250804_075009_encoder.joblib",
+            "performance_metrics": null
+        },
+        "nb_multinomial_20250808_214414": {
+            "creation_date": "2025-08-08T21:44:14.467963",
+            "pipeline_file": "nb_multinomial_20250808_214414_pipeline.joblib",
+            "encoder_file": "nb_multinomial_20250808_214414_encoder.joblib",
+            "performance_metrics": null
+        },
+        "nb_multinomial_20250808_231517": {
+            "creation_date": "2025-08-08T23:15:17.693688",
+            "pipeline_file": "nb_multinomial_20250808_231517_pipeline.joblib",
+            "encoder_file": "nb_multinomial_20250808_231517_encoder.joblib",
+            "performance_metrics": null
+        }
+    },
+    "active_model_id": "nb_multinomial_20250808_231517"
+}

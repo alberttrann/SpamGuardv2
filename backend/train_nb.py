@@ -1,86 +1,81 @@
-# ... (keep all imports from the original file)
+# backend/train_nb.py
+
 import pandas as pd
-import numpy as np
-import string
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
 from sklearn.preprocessing import LabelEncoder
-from sklearn.naive_bayes import GaussianNB
+from imblearn.pipeline import Pipeline
+from imblearn.over_sampling import SMOTE
 import joblib
 import os
+from datetime import datetime
+
+from .utils import preprocess_tokenizer
+from . import registry
+
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, '..'))
+OUTPUT_MODELS_DIR = os.path.join(PROJECT_ROOT, 'models')
+INPUT_DATA_PATH = os.path.join(BACKEND_DIR, 'data', '2cls_spam_text_cls.csv')
+
 
 def retrain_and_save():
-    """Function to perform the entire Naive Bayes training pipeline."""
-    print("--- Starting Retraining Process ---")
-    nltk.download('stopwords', quiet=True)
-    nltk.download('punkt', quiet=True)
+    """
+    This is the main retraining function for the SpamGuard application.
+    It trains the superior MultinomialNB pipeline on the application's current dataset
+    and saves the production-ready model artifacts with versioning.
+    """
+    print("--- Starting Production Retraining Process with Model Versioning ---")
     
-    # --- 1. Load Data ---
-    print("Loading data...")
-    DATASET_PATH = "data/2cls_spam_text_cls.csv"
-    df = pd.read_csv(
-    "data/2cls_spam_text_cls.csv", 
-    quotechar='"', 
-    on_bad_lines='skip'
-)
-    # Drop rows with missing messages
-    df.dropna(subset=['Message'], inplace=True)
+    # --- 1. Load the Application's Current Dataset ---
+    if not os.path.exists(INPUT_DATA_PATH):
+        print(f"❌ ERROR: Main dataset not found at '{INPUT_DATA_PATH}'. Cannot retrain.")
+        return
+
+    df = pd.read_csv(INPUT_DATA_PATH, quotechar='"', on_bad_lines='skip')
+    df.dropna(subset=['Message', 'Category'], inplace=True)
+    df.drop_duplicates(subset=['Message'], inplace=True)
     
-    messages = df["Message"].astype(str).values.tolist()
-    labels = df["Category"].values.tolist()
-
-    # --- 2. Preprocess Text ---
-    print("Preprocessing text data...")
-    stop_words = set(stopwords.words('english'))
-    stemmer = PorterStemmer()
-
-    def preprocess_text(text):
-        text = text.lower()
-        text = text.translate(str.maketrans('', '', string.punctuation))
-        tokens = nltk.word_tokenize(text)
-        tokens = [token for token in tokens if token not in stop_words]
-        tokens = [stemmer.stem(token) for token in tokens]
-        return tokens
-
-    messages_processed = [preprocess_text(message) for message in messages]
-
-    # --- 3. Feature Extraction (Bag-of-Words) ---
-    print("Creating dictionary and feature vectors...")
-    def create_dictionary(messages):
-        all_words = set(word for message in messages for word in message)
-        return sorted(list(all_words))
-
-    dictionary = create_dictionary(messages_processed)
-
-    def create_features(tokens, dictionary):
-        features = np.zeros(len(dictionary))
-        for token in tokens:
-            if token in dictionary:
-                features[dictionary.index(token)] += 1
-        return features
-
-    X = np.array([create_features(message, dictionary) for message in messages_processed])
-
-    # --- 4. Process Labels ---
+    X = df["Message"].astype(str)
+    y_labels = df["Category"]
     le = LabelEncoder()
-    y = le.fit_transform(labels)
+    y = le.fit_transform(y_labels)
+    print(f"Data loaded. Current distribution: {pd.Series(y_labels).value_counts().to_dict()}")
 
-    # --- 5. Train Naive Bayes Model ---
-    print("Training Naive Bayes model...")
-    model = GaussianNB()
-    model.fit(X, y)
+    # --- 2. Define the Production Training Pipeline ---
+    pipeline = Pipeline([
+        ('tfidf', TfidfVectorizer(
+            tokenizer=preprocess_tokenizer,
+            stop_words=None, 
+            ngram_range=(1, 2),
+            max_features=10000,
+        )),
+        ('smote', SMOTE(random_state=42)),
+        ('clf', MultinomialNB(alpha=0.1))
+    ])
 
-    # --- 6. Save the Model and Associated Objects ---
-    print("Saving model and artifacts...")
-    output_dir = "models"
-    os.makedirs(output_dir, exist_ok=True)
+    # --- 3. Train the Model ---
+    print("Training the production MultinomialNB pipeline...")
+    pipeline.fit(X, y)
+    print("✅ Production model training complete.")
 
-    joblib.dump(model, os.path.join(output_dir, 'nb_model.joblib'))
-    joblib.dump(dictionary, os.path.join(output_dir, 'dictionary.joblib'))
-    joblib.dump(le, os.path.join(output_dir, 'label_encoder.joblib'))
-
-    print("--- Retraining complete. ---")
+    # --- 4. Save with a timestamp and update the registry ---
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_id = f"nb_multinomial_{timestamp}"
+    
+    pipeline_filename = f"{model_id}_pipeline.joblib"
+    encoder_filename = f"{model_id}_encoder.joblib"
+    
+    os.makedirs(OUTPUT_MODELS_DIR, exist_ok=True)
+    joblib.dump(pipeline, os.path.join(OUTPUT_MODELS_DIR, pipeline_filename))
+    joblib.dump(le, os.path.join(OUTPUT_MODELS_DIR, encoder_filename))
+    
+    # Update the registry with the new model information
+    registry.add_model_to_registry(model_id, pipeline_filename, encoder_filename)
+    # Set this newly trained model as the active one
+    registry.set_active_model(model_id)
+    
+    print(f"--- Retraining complete. New model version '{model_id}' created and activated. ---")
 
 if __name__ == "__main__":
     retrain_and_save()

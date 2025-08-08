@@ -1,14 +1,15 @@
+
+# backend/llm_generator.py
+
 import requests
 import json
 import asyncio
 import random
 
-
-# --- OLLAMA GENERATOR  ---
 def get_llm_prompt(label_to_generate: str) -> str:
     """
-    Constructs a clearer, more focused prompt for a small model.
-    It asks the model to focus on ONE scenario at a time.
+    Constructs a clear, focused prompt for generating synthetic data.
+    It provides a variety of realistic scenarios for the LLM to model.
     """
     base_prompt = "You are a data generation assistant. Create a single, short, realistic SMS text message."
     
@@ -57,7 +58,8 @@ def get_llm_prompt(label_to_generate: str) -> str:
             "a 'Class Action Lawsuit' notification, claiming you may be eligible for a settlement if you provide your information.",
             "a fake 'lost item' message, such as 'Did you lose a wallet? I found one with your contact info' trying to lure you into a conversation.",
             "a stock tip for a 'guaranteed' high-return penny stock, which is a classic 'pump and dump' scheme."
-]
+        ]
+
         instruction = f"The message MUST be 'spam'. It should be about: **{random.choice(scenarios)}**"
     
     else: # Ham
@@ -112,9 +114,10 @@ def get_llm_prompt(label_to_generate: str) -> str:
     {instruction}
 
     IMPORTANT:
-    1. Return ONLY the raw text of the message itself. Do NOT add JSON or explanations.
+    1. Return ONLY the raw text of the message itself. Do NOT add JSON, labels, or explanations.
     2. Do NOT use the literal words 'ham' or 'spam' in the message text itself.
     """
+
 
 async def generate_with_ollama(model: str, label_to_generate: str | None = None):
     actual_label = label_to_generate if label_to_generate else random.choice(['spam', 'ham'])
@@ -128,33 +131,25 @@ async def generate_with_ollama(model: str, label_to_generate: str | None = None)
         response.raise_for_status()
         
         json_response = response.json()
-        message_text = json_response.get('response', '').strip().replace('"', '') # Clean up quotes
+        message_text = json_response.get('response', '').strip().replace('"', '')
         
         if message_text:
-            generated_data = {"message": message_text, "label": actual_label}
-            yield generated_data
+            yield {"message": message_text, "label": actual_label}
         else:
             yield "Error: LLM returned an empty response."
-
     except requests.exceptions.RequestException as e:
         yield f"Error: Could not connect to Ollama. Details: {e}"
     except Exception as e:
         yield f"An unexpected error occurred: {e}"
 
-# --- NEW: Added generator for LM Studio ---
+
 async def generate_with_lmstudio(model: str, label_to_generate: str | None = None):
     """Generates data using an LM Studio local server."""
     actual_label = label_to_generate if label_to_generate else random.choice(['spam', 'ham'])
     prompt = get_llm_prompt(actual_label)
     
-    # LM Studio uses an OpenAI-compatible endpoint.
     LM_STUDIO_URL = "http://localhost:1234/v1/chat/completions"
-    
-    payload = {
-        "model": model, 
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.7, # A common default
-    }
+    payload = {"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0.7}
 
     try:
         yield "Sending request to LM Studio... 💻"
@@ -165,11 +160,9 @@ async def generate_with_lmstudio(model: str, label_to_generate: str | None = Non
         message_text = response_json['choices'][0]['message']['content'].strip().replace('"', '')
 
         if message_text:
-            generated_data = {"message": message_text, "label": actual_label}
-            yield generated_data
+            yield {"message": message_text, "label": actual_label}
         else:
             yield "Error: LLM returned an empty response."
-
     except requests.exceptions.RequestException as e:
         yield f"Error: Could not connect to LM Studio. Is the server running? Details: {e}"
     except (KeyError, IndexError) as e:
@@ -177,28 +170,30 @@ async def generate_with_lmstudio(model: str, label_to_generate: str | None = Non
     except Exception as e:
         yield f"An unexpected error occurred: {e}"
 
+
 async def generate_with_openrouter(model: str, api_key: str, label_to_generate: str | None = None):
-    # This function is correct and remains the same.
+    actual_label = label_to_generate if label_to_generate else random.choice(['spam', 'ham'])
+    prompt = get_llm_prompt(actual_label)
+
     OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-    prompt = get_llm_prompt(label_to_generate)
     headers = {"Authorization": f"Bearer {api_key}"}
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "response_format": {"type": "json_object"},
-    }
+    payload = {"model": model, "messages": [{"role": "user", "content": prompt}]}
+
     try:
         yield "Sending request to OpenRouter... ☁️"
         response = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=60)
         response.raise_for_status()
+
         response_json = response.json()
-        content = response_json['choices'][0]['message']['content']
-        generated_json = json.loads(content)
-        if "message" in generated_json and "label" in generated_json:
-            yield f"Generated: {generated_json}"
+        message_text = response_json['choices'][0]['message']['content'].strip().replace('"', '')
+
+        if message_text:
+            yield {"message": message_text, "label": actual_label}
         else:
-            yield "Error: LLM returned invalid JSON. Retrying..."
+            yield "Error: LLM returned an empty response."
     except requests.exceptions.RequestException as e:
-        yield f"Error: Could not connect to OpenRouter. Check API key and model name. Details: {e}"
-    except json.JSONDecodeError:
-        yield "Error: Failed to parse LLM response. Retrying..."
+        yield f"Error: Could not connect to OpenRouter. Details: {e}"
+    except (KeyError, IndexError) as e:
+        yield f"Error: Unexpected response format from OpenRouter. Details: {e}"
+    except Exception as e:
+        yield f"An unexpected error occurred: {e}"

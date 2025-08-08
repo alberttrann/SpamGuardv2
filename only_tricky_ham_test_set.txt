@@ -1,0 +1,52 @@
+ham, Your free access to the academic journal database expires in 48 hours. Renew through institutional login.
+ham, Click here to verify your identity for the upcoming compliance audit with the research board.
+ham, Urgent: Update your two-factor authentication settings by end of day to retain access to the internal portal.
+ham, Your account will be suspended unless you confirm your institutional affiliation within 24 hours.
+ham, You’ve been granted complimentary access to the new data visualization platform. Activate your license now.
+ham, Click to review your updated lab safety training requirements for the fall semester.
+ham, Your subscription to the medical database includes a free CME course. Register before the deadline.
+ham, A limited-time opportunity: Faculty may request free access to the AI research toolkit. Apply via the portal.
+ham, Your free trial of the statistical software ends tomorrow. Contact IT to request a site license.
+ham, Action required: Verify your email address to continue receiving official university notifications.
+ham, You are eligible for a no-cost professional certification in research ethics. Enroll by Friday.
+ham, Click to access your personalized teaching evaluation report from the academic committee.
+ham, Your account has been flagged for unusual login activity. Review recent sessions and confirm legitimacy.
+ham, The university is offering free mental health counseling. Schedule your session through the wellness portal.
+ham, Your access to the encrypted file server requires re-authentication. Do not delay.
+ham, Click to confirm your attendance at the dissertation defense scheduled for May 14.
+ham, Your grant application has been approved. Click to view funding details and reporting obligations.
+ham, Urgent: Submit your course syllabus to the accreditation team by 5 PM today.
+ham, You’ve been invited to a complimentary leadership development seminar for department heads.
+ham, Your account password expires in 2 days. Reset it now to avoid disruption.
+ham, Free attendance for graduate students at the national research conference. Register through your advisor.
+ham, Click to download your official transcript from the registrar’s secure portal.
+ham, Your access to the clinical trial database requires annual re-verification. Complete the process online.
+ham, You are eligible for a free upgrade to premium features on the research collaboration platform.
+ham, Your department’s software license renews automatically next week. Manage settings if needed.
+ham, Click to view your updated office hours schedule from the academic office.
+ham, Your manuscript has been accepted. Sign the publication agreement via the journal portal.
+ham, Your free trial of the citation management tool ends in 36 hours. Students may continue via library access.
+ham, Action required: Complete your mandatory cybersecurity training before Friday.
+ham, You’ve been assigned a new collaborator on the NIH-funded project. Confirm via email.
+ham, Click to access your personalized retirement planning consultation with HR.
+ham, Your account requires email validation to receive official institutional alerts.
+ham, The annual compliance training module is now live. Completion is mandatory within 10 days.
+ham, Your access to the high-performance computing cluster is approved. Activate your account today.
+ham, Click to confirm your role in the upcoming accreditation review visit.
+ham, Your subscription includes a complimentary webinar series on research integrity. Register now.
+ham, You are eligible for a free consultation with the university tech transfer office.
+ham, Your grant progress report is due in 4 days. Submit through the research administration portal.
+ham, Click to download your official letter of collaboration for the joint proposal.
+ham, Your account has been selected for a security audit. Cooperate with the IT team promptly.
+ham, Your access to the alumni career network is active. Log in to schedule a coaching session.
+ham, Click to review your updated research ethics approval status.
+ham, Your free access to the language proficiency assessment tool ends soon. Renew through your department.
+ham, You’ve been added to the editorial board of the journal. Accept the invitation via official email.
+ham, Your account requires re-authentication due to recent policy updates.
+ham, Click to access your personalized faculty development roadmap.
+ham, Your department’s annual budget proposal is under review. Track status online.
+ham, You are invited to a no-cost workshop on inclusive teaching practices. Register by May 10.
+ham, Click to confirm your participation in the curriculum standards committee.
+ham, Your access to the secure research cloud is live. Configure your storage and permissions.
+ham, Your manuscript revision deadline is approaching. Submit your changes via the journal system.
+ham, Click to download your official research impact statement for tenure review.
