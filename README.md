@@ -387,6 +387,8 @@ the local qwen2.5-7B-Instruct that's been applied advanced prompting techniques 
 |  **2o**<br/> | **Hybrid System**<br/> | **(+270 Tricky)**<br/> | **Mixed (Hard)**<br/> | **95.33%**<br/> | **5.14**<br/> | **4**<br/> | 3<br/> | **0.96**<br/> | **0.94**<br/> | **0.92**<br/> |
 |   |  |  |  |  |  |  |  |  |  |  |
 |  **2p**<br/> | MultinomialNBOnly<br/> | **(+270 Tricky)**<br/> | Tricky Ham<br/> | 92.31%<br/> | 0.24<br/> | 4<br/> | ---<br/> | 0.92<br/> | ---<br/> | ---<br/> |
+| **2q** | `k-NN Search` Only | **(+270 Tricky)** | Tricky Ham | **94.23%** | 1.95 | 3 | --- | **0.94** | --- | --- |
+| **2r** | **`Hybrid System`** | **(+270 Tricky)** | **Tricky Ham** | **94.23%** | 4.77 | **3** | --- | **0.94** | --- | --- |
 
 ²*Spam-related metrics are not applicable (---) for the Tricky Ham test set as it contains no spam samples.*
 
