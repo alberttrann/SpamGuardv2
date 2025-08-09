@@ -1,3 +1,5 @@
 enron_train.txt filter=lfs diff=lfs merge=lfs -text
 kaggle_test.txt filter=lfs diff=lfs merge=lfs -text
 telegram_test.txt filter=lfs diff=lfs merge=lfs -text
+*.csv filter=lfs diff=lfs merge=lfs -text
+*.db filter=lfs diff=lfs merge=lfs -text
