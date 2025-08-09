@@ -1,4 +1,4 @@
-# dashboard/app.py
+# dashboard/app.py (Final, Definitive, Non-Blocking Version)
 
 import streamlit as st
 import requests
@@ -10,7 +10,7 @@ import os
 import joblib
 import numpy as np
 
-# --- Full backend imports are needed for local evaluation ---
+# --- Full backend imports are now needed for local evaluation ---
 import sys
 import torch
 import faiss
@@ -23,11 +23,11 @@ import csv
 import io
 
 # --- Definitive PYTHONPATH Fix ---
-# Ensures the 'backend' module can always be found when running Streamlit
 DASHBOARD_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(DASHBOARD_DIR, '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
+# This import will now work correctly because the loader knows where to find 'backend'
 from backend.utils import preprocess_tokenizer
 
 # --- Absolute Paths ---
@@ -50,6 +50,7 @@ TOKENIZER, TRANSFORMER_MODEL, DEVICE = load_transformer_model()
 def average_pool(states, mask): return (states * mask[..., None]).sum(1) / mask.sum(-1)[..., None]
 def get_embeddings(texts: list, prefix: str, batch_size: int = 32) -> np.ndarray:
     all_embeds = []
+    # No tqdm here as it's a UI function
     for i in range(0, len(texts), batch_size):
         batch = [f"{prefix}: {text}" for text in texts[i:i + batch_size]]
         tokens = TOKENIZER(batch, max_length=512, padding=True, truncation=True, return_tensors="pt").to(DEVICE)
@@ -61,15 +62,23 @@ def get_embeddings(texts: list, prefix: str, batch_size: int = 32) -> np.ndarray
 # --- Configuration & Setup ---
 API_BASE_URL = "http://127.0.0.1:8000"
 st.set_page_config(page_title="SpamGuard AI", page_icon="🛡️", layout="wide")
-st.title("🛡️ SpamGuard AI: An Adaptive Spam Filtering System")
 
 # --- Session State ---
 if 'last_classified_message' not in st.session_state: st.session_state.last_classified_message = None
 if 'generating' not in st.session_state: st.session_state.generating = False
 if 'generation_type' not in st.session_state: st.session_state.generation_type = None
 if 'evaluation_results' not in st.session_state: st.session_state.evaluation_results = None
+if 'backend_ready' not in st.session_state: st.session_state.backend_ready = False
 
 # --- API Functions ---
+def check_backend_status():
+    """Polls the backend to see if the classifier is ready."""
+    try:
+        response = requests.get(f"{API_BASE_URL}/status", timeout=5)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException:
+        return {"is_ready": False}
 def classify_message(message):
     try: response = requests.post(f"{API_BASE_URL}/classify", json={"text": message}); response.raise_for_status(); return response.json()
     except requests.exceptions.RequestException as e: st.error(f"API Error: {e}"); return None
@@ -91,9 +100,6 @@ def get_models():
 def set_active_model(model_id):
     try: response = requests.post(f"{API_BASE_URL}/models/activate", json={"model_id": model_id}); response.raise_for_status(); return response.json()
     except requests.exceptions.RequestException as e: st.error(f"API Error: {e}"); return None
-def get_nb_probabilities(messages):
-    try: response = requests.post(f"{API_BASE_URL}/get_nb_probabilities", json={"messages": messages}); response.raise_for_status(); return response.json()
-    except requests.exceptions.RequestException as e: st.error(f"API Error: {e}"); return None
 
 # --- Helper Function for Parsing ---
 def parse_labeled_data_from_stream(file_stream):
@@ -102,7 +108,7 @@ def parse_labeled_data_from_stream(file_stream):
         reader = csv.reader(file_stream)
         for i, row in enumerate(reader):
             if not row: continue
-            if len(row) != 2: errors.append(f"Line {i+1}: Invalid format. Expected 2 columns, found {len(row)}."); continue
+            if len(row) != 2: errors.append(f"Line {i+1}: Invalid format."); continue
             label, message = row
             label = label.strip().lower(); message = message.strip()
             if label not in ['ham', 'spam']: errors.append(f"Line {i+1}: Invalid label '{label}'."); continue
@@ -111,7 +117,31 @@ def parse_labeled_data_from_stream(file_stream):
     except Exception as e: errors.append(f"A critical error occurred during parsing: {e}")
     return true_labels, messages, records_for_retraining, errors
 
-# --- UI Sections ---
+# --- Main Application Logic ---
+
+st.title("🛡️ SpamGuard AI: An Adaptive Spam Filtering System")
+
+# --- THE DEFINITIVE WARMUP LOGIC (NO LOOP) ---
+if not st.session_state.backend_ready:
+    # Check the status once per script run.
+    status_response = check_backend_status()
+    
+    if status_response and status_response.get("is_ready"):
+        # If it's ready, update the state and show a success message.
+        st.session_state.backend_ready = True
+        st.success("✅ SpamGuard AI engine is ready! Loading application...")
+        time.sleep(1.5) # Give user a moment to see the success message
+        st.rerun() # Rerun to draw the full app.
+    else:
+        # If not ready, show the waiting message and stop the script here.
+        st.info("⏳ Waiting for SpamGuard AI engine to be ready... This may take several minutes.")
+        st.warning("If this is the first run or after retraining, please run `python -m backend.loader` in a separate terminal.")
+        # Schedule the page to automatically refresh in a few seconds to check again.
+        time.sleep(5)
+        st.rerun() # Use the modern rerun command
+        st.stop() # Ensure nothing else is drawn
+
+# --- All UI sections will only be rendered AFTER the block above succeeds ---
 
 # SECTION 1: CLASSIFICATION
 st.header("1. Real-time Classification")
@@ -142,10 +172,11 @@ st.divider()
 st.header("2. Model Management & Registry")
 st.write("View all trained model versions and activate a specific one for real-time classification.")
 if st.button("Refresh Model List"): st.rerun() 
-registry_data = get_models()
+with st.spinner("Fetching model registry from backend..."): registry_data = get_models()
 if registry_data and registry_data.get("models"):
     active_model_id = registry_data.get("active_model_id")
-    models_list = [{"ID": model_id, "Created On": datetime.fromisoformat(details["creation_date"]).strftime("%Y-%m-%d %H:%M:%S"), "Status": "✅ Active" if model_id == active_model_id else ""} for model_id, details in registry_data["models"].items()]
+    sorted_models = sorted(registry_data["models"].items(), key=lambda i: i[1]['creation_date'], reverse=True)
+    models_list = [{"ID": model_id, "Created On": datetime.fromisoformat(details["creation_date"]).strftime("%Y-%m-%d %H:%M:%S"), "Status": "✅ Active" if model_id == active_model_id else ""} for model_id, details in sorted_models]
     models_df = pd.DataFrame(models_list).set_index("ID"); st.dataframe(models_df, use_container_width=True)
     st.subheader("Activate a Different Model")
     inactive_models = [m["ID"] for m in models_list if m["Status"] == ""]
@@ -154,10 +185,11 @@ if registry_data and registry_data.get("models"):
         if st.button("Activate Selected Model", type="primary"):
             with st.spinner(f"Activating model '{model_to_activate}'..."):
                 response = set_active_model(model_to_activate)
-                if response and response['status'] == 'success': st.success(response['message']); st.toast("Model activated!"); time.sleep(1); st.rerun()
+                if response and response['status'] == 'success': st.success(response['message']); st.toast("Model activated! Loader script must be run."); time.sleep(2); st.rerun()
                 else: st.error("Failed to activate model.")
     else: st.info("There are no other inactive models to activate.")
-else: st.warning("No models found in the registry. Please retrain a model to begin.")
+elif registry_data is None: st.error("Could not connect to the backend API.")
+else: st.warning("No models found in the registry. Please retrain a model in Section 3 to begin.")
 
 st.divider()
 
@@ -207,9 +239,9 @@ with training_col:
             else: st.warning("Text area is empty.")
     st.markdown("---"); st.write("Add all new data to the main dataset and retrain the models.")
     if st.button("Retrain Model with New Data", use_container_width=True, type="primary"):
-        with st.spinner("Retraining in progress..."): retrain_result = retrain_model()
+        with st.spinner("Retraining in progress... This may take several minutes."): retrain_result = retrain_model()
         if retrain_result:
-            if retrain_result['status'] == 'success': st.success(retrain_result['message']); st.balloons()
+            if retrain_result['status'] == 'success': st.success(retrain_result['message']); st.info("Please restart the `loader.py` script to activate the new model."); st.balloons()
             else: st.info(retrain_result['message'])
 
 st.divider()

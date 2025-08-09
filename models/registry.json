@@ -18,12 +18,12 @@
             "encoder_file": "nb_multinomial_20250808_214414_encoder.joblib",
             "performance_metrics": null
         },
-        "nb_multinomial_20250808_231517": {
-            "creation_date": "2025-08-08T23:15:17.693688",
-            "pipeline_file": "nb_multinomial_20250808_231517_pipeline.joblib",
-            "encoder_file": "nb_multinomial_20250808_231517_encoder.joblib",
+        "nb_multinomial_20250809_065804": {
+            "creation_date": "2025-08-09T06:58:04.761288",
+            "pipeline_file": "nb_multinomial_20250809_065804_pipeline.joblib",
+            "encoder_file": "nb_multinomial_20250809_065804_encoder.joblib",
             "performance_metrics": null
         }
     },
-    "active_model_id": "nb_multinomial_20250808_231517"
+    "active_model_id": "nb_multinomial_20250809_065804"
 }

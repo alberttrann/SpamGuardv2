@@ -9,6 +9,7 @@ import torch.nn.functional as F
 import pandas as pd
 from tqdm import tqdm
 import os
+from typing import List, Dict
 
 # Use relative imports for local modules
 from .utils import preprocess_tokenizer
@@ -18,52 +19,66 @@ from . import registry
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, '..'))
 DATA_CSV_PATH = os.path.join(BACKEND_DIR, 'data', '2cls_spam_text_cls.csv')
+FAISS_INDEX_PATH = os.path.join(PROJECT_ROOT, 'models', 'faiss_index.bin')
+
 
 
 class SpamGuardClassifier:
     """
     A hybrid classifier that uses a superior Multinomial Naive Bayes pipeline for
     fast triage and a powerful Transformer-based vector search for deep analysis.
-    It is designed to be reloaded on-the-fly after retraining.
+    This class uses lazy loading to ensure fast server startups.
     """
     def __init__(self):
-        """Initializes the classifier by loading the active model from the registry."""
-        self._load_all_components()
+        """
+        Initializes the classifier in a 'lazy' state.
+        The models are not loaded until they are explicitly needed.
+        """
+        print("SpamGuardClassifier instance created in a lazy state.")
+        self.is_loaded = False
+        # Initialize all model attributes to None
+        self.nb_pipeline = None
+        self.label_encoder = None
+        self.transformer_model = None
+        self.tokenizer = None
+        self.device = None
+        self.faiss_index = None
+        self.all_messages = []
+        self.all_labels = []
 
-    def _load_all_components(self):
+    def load(self):
         """
-        Loads the ACTIVE model from the registry, data, and builds the FAISS index.
+        Loads all models and data. It now uses an intelligent caching system
+        for the FAISS index to avoid slow re-computation.
         """
-        print("--- Initializing or Reloading SpamGuard AI Classifier ---")
+        print("--- LAZY LOADING: Initializing or Reloading SpamGuard AI Classifier ---")
         
-        # --- 1. Load ACTIVE Naive Bayes Pipeline from Registry ---
+        # --- 1. Load Naive Bayes Pipeline (Unchanged) ---
         pipeline_path, encoder_path = registry.get_active_model_paths()
-        
-        if pipeline_path and encoder_path and os.path.exists(pipeline_path):
+        if pipeline_path and encoder_path:
             try:
                 self.nb_pipeline = joblib.load(pipeline_path)
                 self.label_encoder = joblib.load(encoder_path)
                 active_id = registry.get_all_models().get("active_model_id", "N/A")
                 print(f"✅ Active model '{active_id}' loaded successfully.")
             except Exception as e:
-                print(f"🔴 ERROR loading active model: {e}. Classifier will rely on Vector Search.")
+                print(f"🔴 ERROR loading active model: {e}. NB triage will be skipped.")
                 self.nb_pipeline = None; self.label_encoder = None
         else:
             print(f"🔴 WARNING: No active Naive Bayes model found in registry.")
-            print("Please run `python -m backend.train_nb` to create an initial model.")
             self.nb_pipeline = None; self.label_encoder = None
 
-        # --- 2. Load Transformer Model ---
-        if not hasattr(self, 'transformer_model'):
+        # --- 2. Load Transformer Model (Unchanged) ---
+        if self.transformer_model is None:
             MODEL_NAME = "intfloat/multilingual-e5-base"
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
             self.transformer_model = AutoModel.from_pretrained(MODEL_NAME).to(self.device).eval()
             print(f"✅ Transformer model loaded on {self.device}.")
 
-        # --- 3. Load App Data and Build FAISS Index ---
+        # --- 3. Load App Data and Build/Load FAISS Index (NEW CACHING LOGIC) ---
         if not os.path.exists(DATA_CSV_PATH):
-            print(f"🔴 WARNING: Data file not found at {DATA_CSV_PATH}. FAISS index will be empty.")
+            print(f"🔴 WARNING: Data file not found at {DATA_CSV_PATH}. FAISS index cannot be built.")
             self.all_messages = []; self.all_labels = []; self.faiss_index = None
         else:
             df = pd.read_csv(DATA_CSV_PATH, quotechar='"', on_bad_lines='skip')
@@ -71,19 +86,46 @@ class SpamGuardClassifier:
             self.all_messages = df["Message"].astype(str).tolist()
             self.all_labels = df["Category"].tolist()
             
-            print("Generating embeddings for the entire dataset to build FAISS index...")
-            embeddings = self._get_embeddings(self.all_messages, "passage")
+            # --- THIS IS THE NEW CACHING LOGIC ---
+            # Check if a cached index exists and if it's newer than the data file.
+            cache_is_valid = (
+                os.path.exists(FAISS_INDEX_PATH) and
+                os.path.getmtime(FAISS_INDEX_PATH) >= os.path.getmtime(DATA_CSV_PATH)
+            )
             
-            self.faiss_index = faiss.IndexFlatIP(embeddings.shape[1])
-            self.faiss_index.add(embeddings.astype('float32'))
-            print("✅ FAISS index built/rebuilt successfully.")
+            if cache_is_valid:
+                print("✅ Found valid cache. Loading FAISS index from disk... (This is fast)")
+                self.faiss_index = faiss.read_index(FAISS_INDEX_PATH)
+                print("✅ FAISS index loaded from cache.")
+            else:
+                print("🔴 Cache is stale or not found. Rebuilding FAISS index... (This is the slow part)")
+                embeddings = self._get_embeddings(self.all_messages, "passage")
+                
+                if embeddings.shape[0] > 0:
+                    self.faiss_index = faiss.IndexFlatIP(embeddings.shape[1])
+                    self.faiss_index.add(embeddings.astype('float32'))
+                    
+                    # Save the newly built index to the cache file
+                    print(f"💾 Saving new FAISS index to cache: {FAISS_INDEX_PATH}")
+                    faiss.write_index(self.faiss_index, FAISS_INDEX_PATH)
+                    print("✅ FAISS index rebuilt and cached successfully.")
+                else:
+                    self.faiss_index = None
+                    print("🔴 WARNING: No data to build FAISS index.")
             
-        print("--- SpamGuard AI Classifier is ready. ---")
+        self.is_loaded = True
+        print("--- SpamGuard AI Classifier is now fully loaded and ready. ---")
+
+    def _ensure_loaded(self):
+        """A helper method to check if the models are loaded before use."""
+        if not self.is_loaded:
+            self.load()
 
     def reload(self):
-        """Triggers a full reload of the classifier and FAISS index."""
-        print("--- Reloading classifier with updated data... ---")
-        self._load_all_components()
+        """Triggers a full reload of the classifier components."""
+        # We only need to mark as not loaded. The next call to _ensure_loaded will do the work.
+        print("--- Reload triggered. Models will be reloaded on the next request. ---")
+        self.is_loaded = False
 
     def _average_pool(self, last_hidden_states, attention_mask):
         last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
@@ -91,8 +133,7 @@ class SpamGuardClassifier:
     
     def _get_embeddings(self, texts: list, prefix: str, batch_size: int = 32) -> np.ndarray:
         if not texts:
-            # Handle case where there's no data to embed
-            return np.array([])
+            return np.array([], dtype=np.float32).reshape(0, 768) # Return empty array with correct shape
             
         all_embeddings = []
         for i in range(0, len(texts), batch_size):
@@ -104,25 +145,69 @@ class SpamGuardClassifier:
             embeddings = F.normalize(embeddings, p=2, dim=1)
             all_embeddings.append(embeddings.cpu().numpy())
         return np.vstack(all_embeddings)
+    
+    def get_nb_probabilities(self, messages: List[str]):
+        """
+        Ensures model is loaded and returns raw spam probabilities for a list of messages.
+        """
+        self._ensure_loaded()
+        if not self.nb_pipeline:
+            return {"error": "Naive Bayes model is not loaded."}
+        
+        spam_idx = np.where(self.label_encoder.classes_ == 'spam')[0][0]
+        all_probs = self.nb_pipeline.predict_proba(messages)
+        return {"spam_probabilities": [p[spam_idx] for p in all_probs]}
+
+    def explain_model(self, top_n: int = 20):
+        """
+        Ensures model is loaded and returns the top keywords.
+        """
+        self._ensure_loaded()
+        if not self.nb_pipeline:
+            return {"error": "Naive Bayes model not loaded."}
+        
+        try:
+            vectorizer = self.nb_pipeline.named_steps['tfidf']
+            model = self.nb_pipeline.named_steps['clf']
+            label_encoder = self.label_encoder
+            feature_names = np.array(vectorizer.get_feature_names_out())
+            log_probs = model.feature_log_prob_
+            spam_idx = np.where(label_encoder.classes_ == 'spam')[0][0]
+            ham_idx = np.where(label_encoder.classes_ == 'ham')[0][0]
+            top_spam_indices = log_probs[spam_idx].argsort()[-top_n:][::-1]
+            top_ham_indices = log_probs[ham_idx].argsort()[-top_n:][::-1]
+            return {
+                "top_spam_keywords": feature_names[top_spam_indices].tolist(),
+                "top_ham_keywords": feature_names[top_ham_indices].tolist()
+            }
+        except Exception as e:
+            return {"error": f"An error occurred during explanation: {e}"}
 
     def classify(self, text: str) -> dict:
         """Classifies a single text message using the hybrid approach."""
+        self._ensure_loaded() # This check ensures models are loaded before proceeding.
+        
         # --- Stage 1: Fast Triage with MultinomialNB ---
         if self.nb_pipeline and self.label_encoder:
             nb_probabilities = self.nb_pipeline.predict_proba([text])[0]
             spam_class_index = np.where(self.label_encoder.classes_ == 'spam')[0][0]
             spam_prob = nb_probabilities[spam_class_index]
 
-            if spam_prob < 0.15:
+            # Stricter threshold based on our findings
+            if spam_prob < 0.15: # Confident Ham
                 return {"prediction": "ham", "confidence": 1 - spam_prob, "model": "MultinomialNB", "evidence": None}
-            if spam_prob > 0.85:
+            if spam_prob > 0.85: # Confident Spam
                 return {"prediction": "spam", "confidence": spam_prob, "model": "MultinomialNB", "evidence": None}
 
         # --- Stage 2: Deep Analysis with Vector Search ---
-        # This stage is triggered if the NB model is uncertain OR if it failed to load/FAISS is empty.
         if not self.faiss_index or self.faiss_index.ntotal == 0:
-            # Fallback if FAISS is not available
-            return {"prediction": "ham", "confidence": 0.5, "model": "Fallback (No FAISS Index)", "evidence": None}
+            # Fallback if FAISS is not available. Predict based on NB's less confident result.
+            if self.nb_pipeline:
+                prediction = self.nb_pipeline.predict([text])[0]
+                confidence = max(self.nb_pipeline.predict_proba([text])[0])
+                return {"prediction": prediction, "confidence": confidence, "model": "MultinomialNB (No FAISS)", "evidence": None}
+            else: # Absolute fallback
+                return {"prediction": "ham", "confidence": 0.5, "model": "Fallback (No Models)", "evidence": None}
 
         k = 5
         query_embedding = self._get_embeddings([text], "query", batch_size=1)

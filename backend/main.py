@@ -1,12 +1,13 @@
-# backend/main.py
+# backend/main.py (Final, Definitive Non-Blocking Version)
 
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
+from typing import List
+from fastapi.concurrency import run_in_threadpool
+import json
+import os
 from fastapi.responses import StreamingResponse
 import asyncio
-import json
-import numpy as np
-from typing import List
 
 # Use relative imports for local modules
 from .classifier import SpamGuardClassifier
@@ -15,28 +16,23 @@ from . import llm_generator
 from .train_nb import retrain_and_save
 from . import registry
 
-app = FastAPI(title="SpamGuard AI API", version="2.3.0")
+app = FastAPI(title="SpamGuard AI API", version="3.0.0") # Final version bump
+
+# The singleton is still created lazy, but it will be loaded by the loader script
+# or by the first /status call after the flag file is present.
+classifier_singleton = SpamGuardClassifier() 
+
+# Define the path for our communication flag file
+FLAG_FILE_PATH = os.path.join(os.path.dirname(__file__), "_ready.flag")
 
 @app.on_event("startup")
 def startup_event():
     """
-    Initializes the database and ensures there's an active model.
-    If no model is active, it tries to set the most recent one.
+    Startup is now minimal. It only initializes the database.
+    The heavy model loading is handled by a separate process.
     """
     database.init_db()
-    
-    reg = registry.get_all_models()
-    active_id = reg.get("active_model_id")
-    all_models = reg.get("models")
-
-    if not active_id and all_models:
-        print("No active model set. Activating the most recent model...")
-        latest_model_id = sorted(all_models.items(), key=lambda item: item[1]['creation_date'], reverse=True)[0][0]
-        registry.set_active_model(latest_model_id)
-        print(f"Model '{latest_model_id}' automatically activated.")
-
-    app.state.classifier = SpamGuardClassifier()
-
+    print("Application startup complete. Waiting for loader script to signal readiness via flag file.")
 
 # --- Pydantic Models ---
 class Message(BaseModel): text: str
@@ -46,14 +42,33 @@ class BulkFeedbackItem(BaseModel): label: str; message: str
 class BulkMessageRequest(BaseModel): messages: List[str]    
 class ActivateModelRequest(BaseModel): model_id: str
 
-
 # --- API Endpoints ---
+
+@app.get("/status")
+def get_status():
+    """
+    A fast, lightweight endpoint that checks if the classifier is ready.
+    It checks for the existence of the flag file created by loader.py.
+    """
+    is_ready = os.path.exists(FLAG_FILE_PATH)
+    
+    # If the flag exists but the in-memory object isn't loaded yet (e.g., after a --reload), load it.
+    # This is a one-time sync step that happens only if the flag is already present.
+    if is_ready and not classifier_singleton.is_loaded:
+        print("Ready flag detected, but classifier not loaded in this instance. Loading now...")
+        classifier_singleton.load()
+        
+    return {"is_ready": classifier_singleton.is_loaded}
+
 @app.get("/")
-def read_root(): return {"message": "Welcome to the SpamGuard AI API"}
+def read_root(): return {"message": "Welcome to the SpamGuard AI API. Use the /status endpoint to check readiness."}
 
 @app.post("/classify")
 def classify_message(message: Message):
-    return app.state.classifier.classify(message.text)
+    if not classifier_singleton.is_loaded:
+        return {"error": "Classifier is not ready. Please ensure the loader script has completed."}
+    # This is now a fast, synchronous call because the model is already loaded.
+    return classifier_singleton.classify(message.text)
 
 @app.post("/feedback")
 def receive_feedback(feedback: Feedback):
@@ -62,12 +77,8 @@ def receive_feedback(feedback: Feedback):
 
 @app.post("/bulk_feedback")
 def receive_bulk_feedback(feedback_list: List[BulkFeedbackItem]):
-    try:
-        for item in feedback_list:
-            database.add_feedback(message=item.message, label=item.label, source='user')
-        return {"status": "success", "message": f"Successfully added {len(feedback_list)} records."}
-    except Exception as e:
-        return {"status": "error", "message": f"An error occurred: {e}"}
+    for item in feedback_list: database.add_feedback(message=item.message, label=item.label, source='user')
+    return {"status": "success", "message": f"Successfully added {len(feedback_list)} records."}
 
 @app.get("/analytics")
 def get_analytics():
@@ -75,12 +86,23 @@ def get_analytics():
 
 @app.post("/retrain")
 async def trigger_retraining():
-    new_records_count = database.enrich_main_dataset()
+    # Retraining is a long process, so we run it in a threadpool to not block the server.
+    print("Retraining process started in background...")
+    new_records_count = await run_in_threadpool(database.enrich_main_dataset)
     if new_records_count == 0:
         return {"status": "skipped", "message": "No new feedback data to train on."}
-    retrain_and_save() 
-    app.state.classifier.reload() 
-    return {"status": "success", "message": f"Model retrained with {new_records_count} new records."}
+    
+    await run_in_threadpool(retrain_and_save)
+    
+    # After retraining, we MUST delete the flag file to signal the model is stale.
+    if os.path.exists(FLAG_FILE_PATH):
+        os.remove(FLAG_FILE_PATH)
+        
+    # Mark the current instance as not loaded. A new run of loader.py is required.
+    classifier_singleton.is_loaded = False
+    print("Retraining complete. The ready flag has been removed. Please run the loader script again.")
+    
+    return {"status": "success", "message": f"Retraining complete with {new_records_count} new records. Please run the loader script to activate the new model."}
 
 @app.get("/models")
 def list_models():
@@ -88,48 +110,32 @@ def list_models():
 
 @app.post("/models/activate")
 def activate_model(req: ActivateModelRequest):
+    # Activating a model is just changing the registry. The loader will pick it up.
     try:
         registry.set_active_model(req.model_id)
-        app.state.classifier.reload()
-        return {"status": "success", "message": f"Model '{req.model_id}' activated successfully."}
-    except ValueError as e:
-        return {"status": "error", "message": str(e)}
+        # The model is now stale. Remove the flag and require a new load.
+        if os.path.exists(FLAG_FILE_PATH):
+            os.remove(FLAG_FILE_PATH)
+        classifier_singleton.is_loaded = False
+        return {"status": "success", "message": f"Model '{req.model_id}' set as active. Please run the loader script to load it."}
     except Exception as e:
-        return {"status": "error", "message": f"An unexpected error occurred: {e}"}
+        return {"status": "error", "message": str(e)}
 
 @app.get("/explain_model")
 def explain_nb_model(top_n: int = 20):
-    classifier_instance = app.state.classifier
-    if not classifier_instance.nb_pipeline:
-        return {"error": "Naive Bayes model not loaded."}
-    try:
-        vectorizer = classifier_instance.nb_pipeline.named_steps['tfidf']
-        model = classifier_instance.nb_pipeline.named_steps['clf']
-        label_encoder = classifier_instance.label_encoder
-        feature_names = np.array(vectorizer.get_feature_names_out())
-        log_probs = model.feature_log_prob_
-        spam_idx = np.where(label_encoder.classes_ == 'spam')[0][0]
-        ham_idx = np.where(label_encoder.classes_ == 'ham')[0][0]
-        top_spam_indices = log_probs[spam_idx].argsort()[-top_n:][::-1]
-        top_ham_indices = log_probs[ham_idx].argsort()[-top_n:][::-1]
-        return {
-            "top_spam_keywords": feature_names[top_spam_indices].tolist(),
-            "top_ham_keywords": feature_names[top_ham_indices].tolist()
-        }
-    except Exception as e:
-        return {"error": f"An error occurred during explanation: {e}"}
+    if not classifier_singleton.is_loaded:
+        return {"error": "Classifier is not ready."}
+    return classifier_singleton.explain_model(top_n=top_n)
 
 @app.post("/get_nb_probabilities")
 def get_nb_probabilities(req: BulkMessageRequest):
-    classifier_instance = app.state.classifier
-    if not classifier_instance.nb_pipeline:
-        return {"error": "Naive Bayes model not loaded."}
-    spam_idx = np.where(classifier_instance.label_encoder.classes_ == 'spam')[0][0]
-    all_probs = classifier_instance.nb_pipeline.predict_proba(req.messages)
-    return {"spam_probabilities": [p[spam_idx] for p in all_probs]}
+    if not classifier_singleton.is_loaded:
+        return {"error": "Classifier is not ready."}
+    return classifier_singleton.get_nb_probabilities(req.messages)
 
 @app.post("/generate_data")
 async def generate_data_stream(req: LLMRequest, raw_request: Request):
+    # This endpoint is already async and streaming, it's fine as is.
     async def event_stream():
         while True:
             if await raw_request.is_disconnected(): break
