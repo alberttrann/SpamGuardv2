@@ -151,16 +151,25 @@ def classify_message(message: Message):
 @app.post("/bulk_classify")
 def bulk_classify_messages(req: BulkMessageRequest):
     """
-    Accepts a list of raw messages, classifies each one using the live, loaded
-    classifier, and returns a list of results.
+    Accepts a list of raw messages, classifies each one, and returns a
+    list of detailed results including timing information.
     """
     if not manager.prod_classifier.is_loaded:
-        return [{"error": "Classifier is not ready yet."}] * len(req.messages)
+        # Return a list of errors if the classifier isn't ready
+        error_result = {"error": "Classifier is not ready yet."}
+        return [error_result] * len(req.messages)
         
     results = []
     for message in req.messages:
+        start_time = time.perf_counter()
+        # The classify method itself is synchronous within the classifier
         result = manager.prod_classifier.classify(message)
+        end_time = time.perf_counter()
+        
+        # Add the calculated time to the result dictionary
+        result['time_ms'] = (end_time - start_time) * 1000
         results.append(result)
+        
     return results
 
 @app.post("/feedback")

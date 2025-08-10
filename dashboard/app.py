@@ -472,7 +472,7 @@ if st.session_state.evaluation_results:
     true_labels = eval_data["true_labels"]
     final_results_detailed = eval_data["final_results_detailed"]
     pred_labels = [p['prediction'] for p in final_results_detailed]
-    
+
     # --- Performance Summary ---
     st.subheader("Performance Summary")
     summary_col1, summary_col2 = st.columns(2)
@@ -480,18 +480,39 @@ if st.session_state.evaluation_results:
         accuracy = accuracy_score(true_labels, pred_labels)
         st.metric("Overall Accuracy", f"{accuracy:.2%}")
         
-        # We don't have detailed timing per message, so we show the overall report
         st.text("Classification Report:")
         report_df = pd.DataFrame(classification_report(true_labels, pred_labels, labels=["ham", "spam"], output_dict=True, zero_division=0)).transpose()
         st.dataframe(report_df)
 
     with summary_col2:
         cm = confusion_matrix(true_labels, pred_labels, labels=["ham", "spam"])
-        fig, ax = plt.subplots(figsize=(5, 4))
+        fig, ax = plt.subplots(figsize=(2, 1))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax, xticklabels=["ham", "spam"], yticklabels=["ham", "spam"])
         ax.set_title("Confusion Matrix")
         ax.set_xlabel("Predicted Label"); ax.set_ylabel("True Label")
         st.pyplot(fig)
+
+    st.markdown("---")
+    st.subheader("Performance Metrics")
+    
+    # Calculate timing stats from the detailed results
+    total_time_ms = sum(r.get('time_ms', 0) for r in final_results_detailed)
+    avg_time_ms = total_time_ms / len(true_labels) if true_labels else 0
+    
+    perf_col1, perf_col2 = st.columns(2)
+    perf_col1.metric("Total Prediction Time", f"{total_time_ms / 1000:.4f} s")
+    perf_col2.metric("Average Time / Message", f"{avg_time_ms:.2f} ms")
+
+    # Only show hybrid stats if it was a hybrid run
+    if config.get('mode') == 'hybrid':
+        nb_count = sum(1 for r in final_results_detailed if r['model'] == 'MultinomialNB')
+        knn_count = len(true_labels) - nb_count
+        
+        usage_col1, usage_col2 = st.columns(2)
+        usage_col1.metric("NB Triage Usage", f"{nb_count / len(true_labels):.1%}")
+        usage_col2.metric("k-NN Escalation Usage", f"{knn_count / len(true_labels):.1%}")
+    
+    st.markdown("---")
 
     # --- Expander for Detailed Breakdown ---
     with st.expander(f"⬇️ Click to see detailed breakdown for all {len(true_labels)} messages"):
@@ -501,15 +522,11 @@ if st.session_state.evaluation_results:
             "Correct?": ["✅" if t == r.get('prediction') else "❌" for t, r in zip(true_labels, final_results_detailed)],
             "Model Used": [r.get('model', 'N/A') for r in final_results_detailed],
             "Confidence": [f"{r.get('confidence', 0):.2%}" for r in final_results_detailed],
+            "Time (ms)": [f"{r.get('time_ms', 0):.2f}" for r in final_results_detailed],
             "Message": eval_data["messages"]
         })
         st.dataframe(df_breakdown, use_container_width=True)
     
-    # --- Interactive Threshold Simulation ---
-    # The simulation part was complex and prone to bugs when using the live endpoint.
-    # For this final version, we'll remove it to ensure stability. The core evaluation
-    # is the most important feature. If you want to add it back later, it would require
-    # the dedicated `/get_nb_probabilities` endpoint again.
     
     # --- Action Buttons ---
     st.subheader("Next Steps")
