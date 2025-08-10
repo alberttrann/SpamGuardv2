@@ -25,5 +25,9 @@
             "performance_metrics": null
         }
     },
-    "active_model_id": "nb_multinomial_20250804_075009"
+    "active_model_id": "nb_multinomial_20250804_075009",
+    "current_config": {
+        "mode": "hybrid",
+        "knn_dataset_file": "before_enron.csv"
+    }
 }
