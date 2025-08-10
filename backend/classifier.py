@@ -1,4 +1,4 @@
-# backend/classifier.py
+# backend/classifier.py (Final, Definitive Version)
 
 import joblib
 import numpy as np
@@ -11,30 +11,25 @@ from tqdm import tqdm
 import os
 from typing import List, Dict
 
+# Use relative imports for local modules
 from .utils import preprocess_tokenizer
 from . import registry
 
+# --- Define robust absolute paths ---
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, '..'))
-
 MODELS_DIR = os.path.join(PROJECT_ROOT, 'models')
-DATA_DIR = os.path.join(BACKEND_DIR, 'data') 
-
-DATA_CSV_PATH = os.path.join(DATA_DIR, '2cls_spam_text_cls.csv')
-
-
+DATA_DIR = os.path.join(BACKEND_DIR, 'data')
 
 
 class SpamGuardClassifier:
     """
-    A hybrid classifier that uses a superior Multinomial Naive Bayes pipeline for
-    fast triage and a powerful Transformer-based vector search for deep analysis.
-    This class uses lazy loading to ensure fast server startups.
+    A dynamic, hybrid classifier that can operate in multiple modes.
+    It uses lazy loading and intelligent caching for high performance.
     """
     def __init__(self):
         """
-        Initializes the classifier in a 'lazy' state.
-        The models are not loaded until they are explicitly needed.
+        Initializes the classifier in a 'lazy' state. Models are not loaded.
         """
         print("SpamGuardClassifier instance created in a lazy state.")
         self.is_loaded = False
@@ -52,14 +47,16 @@ class SpamGuardClassifier:
         Loads classifier components based on the active configuration from the registry.
         """
         print("--- LAZY LOADING: Initializing SpamGuard AI Classifier with current config ---")
-        self.is_loaded = False 
+        self.is_loaded = False # Reset loaded state for a fresh load
 
         current_config = registry.get_current_config()
-        mode = current_config["mode"]
-        knn_dataset_file = current_config["knn_dataset_file"]
+        mode = current_config.get("mode", "hybrid")
+        knn_dataset_file = current_config.get("knn_dataset_file")
 
-        # --- 1. Load Naive Bayes Pipeline (Conditional based on mode) ---
-        if mode == "hybrid" or mode == "nb_only":
+        print(f"Loading in '{mode}' mode. k-NN dataset: '{knn_dataset_file}'")
+
+        # --- 1. Load Naive Bayes Pipeline (Conditional) ---
+        if mode in ["hybrid", "nb_only"]:
             pipeline_path, encoder_path = registry.get_active_model_paths()
             if pipeline_path and encoder_path and os.path.exists(pipeline_path):
                 try:
@@ -68,41 +65,42 @@ class SpamGuardClassifier:
                     active_id = registry.get_all_models().get("active_model_id", "N/A")
                     print(f"✅ Active model '{active_id}' loaded for Naive Bayes.")
                 except Exception as e:
-                    print(f"🔴 ERROR loading active model for NB: {e}. NB triage will be skipped.")
+                    print(f"🔴 ERROR loading active NB model: {e}. NB will be skipped.")
                     self.nb_pipeline = None; self.label_encoder = None
             else:
                 print(f"🔴 WARNING: No active Naive Bayes model found in registry for current mode.")
                 self.nb_pipeline = None; self.label_encoder = None
         else:
             self.nb_pipeline = None; self.label_encoder = None
-            print("Skipping Naive Bayes load (mode is k-NN only).")
+            print("INFO: Skipping Naive Bayes load (mode is k-NN only).")
+
+        # --- 2. Load Transformer Model (Conditional) ---
+        if mode in ["hybrid", "knn_only"]:
+            if self.transformer_model is None: 
+                MODEL_NAME = "intfloat/multilingual-e5-base"
+                self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                self.tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+                self.transformer_model = AutoModel.from_pretrained(MODEL_NAME).to(self.device).eval()
+                print(f"✅ Transformer model loaded on {self.device}.")
+        else:
+            self.transformer_model = None
+            print("INFO: Skipping Transformer load (mode is NB only).")
 
 
-        # --- 2. Load Transformer Model ---
-        if self.transformer_model is None: 
-            MODEL_NAME = "intfloat/multilingual-e5-base"
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            self.tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-            self.transformer_model = AutoModel.from_pretrained(MODEL_NAME).to(self.device).eval()
-            print(f"✅ Transformer model loaded on {self.device}.")
-
-
-        # --- 3. Build/Load FAISS Index (Conditional based on mode) ---
-        if mode == "hybrid" or mode == "knn_only":
-            # --- NEW: Use the selected k-NN dataset for indexing ---
+        # --- 3. Build/Load FAISS Index (Conditional) ---
+        if mode in ["hybrid", "knn_only"]:
             knn_data_path = os.path.join(DATA_DIR, knn_dataset_file)
             
             if not os.path.exists(knn_data_path):
-                print(f"🔴 WARNING: k-NN dataset file '{knn_dataset_file}' not found at {knn_data_path}. FAISS index cannot be built.")
+                print(f"🔴 WARNING: k-NN dataset file '{knn_dataset_file}' not found. FAISS index cannot be built.")
                 self.all_messages = []; self.all_labels = []; self.faiss_index = None
             else:
                 df_knn_data = pd.read_csv(knn_data_path, quotechar='"', on_bad_lines='skip')
-                df_knn_data.dropna(subset=['Message'], inplace=True)
+                df_knn_data.dropna(subset=['Message', 'Category'], inplace=True)
                 self.all_messages = df_knn_data["Message"].astype(str).tolist()
                 self.all_labels = df_knn_data["Category"].tolist()
                 
-                # Caching logic remains for the FAISS index
-                faiss_index_filename = f"faiss_index_{knn_dataset_file.replace('.', '_')}.bin" # Unique name per dataset
+                faiss_index_filename = f"faiss_index_{knn_dataset_file.replace('.', '_')}.bin"
                 FAISS_INDEX_CACHED_PATH = os.path.join(MODELS_DIR, faiss_index_filename)
                 
                 cache_is_valid = (
@@ -115,32 +113,31 @@ class SpamGuardClassifier:
                     self.faiss_index = faiss.read_index(FAISS_INDEX_CACHED_PATH)
                     print("✅ FAISS index loaded from cache.")
                 else:
-                    print(f"🔴 Cache for '{knn_dataset_file}' is stale/not found. Rebuilding FAISS index... (Slow part)")
+                    print(f"🔴 Cache for '{knn_dataset_file}' is stale/not found. Rebuilding FAISS index...")
                     embeddings = self._get_embeddings(self.all_messages, "passage")
-                    
                     if embeddings.shape[0] > 0:
                         self.faiss_index = faiss.IndexFlatIP(embeddings.shape[1])
                         self.faiss_index.add(embeddings.astype('float32'))
                         print(f"💾 Saving new FAISS index to cache: {FAISS_INDEX_CACHED_PATH}")
                         faiss.write_index(self.faiss_index, FAISS_INDEX_CACHED_PATH)
-                        print("✅ FAISS index rebuilt and cached successfully.")
+                        print("✅ FAISS index rebuilt and cached.")
                     else:
                         self.faiss_index = None
                         print("🔴 WARNING: No data to build FAISS index for k-NN.")
         else:
             self.faiss_index = None; self.all_messages = []; self.all_labels = []
-            print("Skipping FAISS index build (mode is NB only).")
+            print("INFO: Skipping FAISS index build (mode is NB only).")
             
         self.is_loaded = True
         print(f"--- SpamGuard AI Classifier is now fully loaded in '{mode}' mode. ---")
 
     def _ensure_loaded(self):
-        """A helper method to check if the models are loaded before use."""
+        """Helper method to check if the models are loaded before use."""
         if not self.is_loaded:
             self.load()
 
     def reload(self):
-        """Triggers a full reload of the classifier components."""
+        """Triggers a full reload of the classifier components on the next request."""
         print("--- Reload triggered. Models will be reloaded on the next request. ---")
         self.is_loaded = False
 
@@ -149,9 +146,8 @@ class SpamGuardClassifier:
         return last_hidden.sum(dim=1) / attention_mask.sum(dim=1)[..., None]
     
     def _get_embeddings(self, texts: list, prefix: str, batch_size: int = 32) -> np.ndarray:
-        if not texts:
-            return np.array([], dtype=np.float32).reshape(0, 768) # Return empty array with correct shape
-            
+        if not texts or self.transformer_model is None:
+            return np.array([], dtype=np.float32).reshape(0, 768)
         all_embeddings = []
         for i in range(0, len(texts), batch_size):
             batch_texts = [f"{prefix}: {text}" for text in texts[i:i + batch_size]]
@@ -164,33 +160,24 @@ class SpamGuardClassifier:
         return np.vstack(all_embeddings)
     
     def get_nb_probabilities(self, messages: List[str]):
-        """
-        Ensures model is loaded and returns raw spam probabilities for a list of messages.
-        """
         self._ensure_loaded()
         if not self.nb_pipeline:
-            return {"error": "Naive Bayes model is not loaded."}
-        
+            return {"error": "Naive Bayes model is not loaded for the current mode."}
         spam_idx = np.where(self.label_encoder.classes_ == 'spam')[0][0]
         all_probs = self.nb_pipeline.predict_proba(messages)
         return {"spam_probabilities": [p[spam_idx] for p in all_probs]}
 
     def explain_model(self, top_n: int = 20):
-        """
-        Ensures model is loaded and returns the top keywords.
-        """
         self._ensure_loaded()
         if not self.nb_pipeline:
-            return {"error": "Naive Bayes model not loaded."}
-        
+            return {"error": "Naive Bayes model is not loaded for the current mode."}
         try:
             vectorizer = self.nb_pipeline.named_steps['tfidf']
             model = self.nb_pipeline.named_steps['clf']
-            label_encoder = self.label_encoder
             feature_names = np.array(vectorizer.get_feature_names_out())
             log_probs = model.feature_log_prob_
-            spam_idx = np.where(label_encoder.classes_ == 'spam')[0][0]
-            ham_idx = np.where(label_encoder.classes_ == 'ham')[0][0]
+            spam_idx = np.where(self.label_encoder.classes_ == 'spam')[0][0]
+            ham_idx = np.where(self.label_encoder.classes_ == 'ham')[0][0]
             top_spam_indices = log_probs[spam_idx].argsort()[-top_n:][::-1]
             top_ham_indices = log_probs[ham_idx].argsort()[-top_n:][::-1]
             return {
@@ -201,45 +188,35 @@ class SpamGuardClassifier:
             return {"error": f"An error occurred during explanation: {e}"}
 
     def classify(self, text: str) -> dict:
-        """Classifies a single text message using the configured hybrid approach."""
         self._ensure_loaded()
-        
         current_config = registry.get_current_config()
-        mode = current_config["mode"]
+        mode = current_config.get("mode", "hybrid")
 
-        # --- Stage 1: Naive Bayes Triage (or if NB_ONLY mode) ---
-        if self.nb_pipeline and self.label_encoder and (mode == "hybrid" or mode == "nb_only"):
+        # --- Stage 1: Naive Bayes Logic ---
+        if self.nb_pipeline and self.label_encoder and mode in ["hybrid", "nb_only"]:
             nb_probabilities = self.nb_pipeline.predict_proba([text])[0]
-            spam_class_index = np.where(self.label_encoder.classes_ == 'spam')[0][0]
-            spam_prob = nb_probabilities[spam_class_index]
-
-            if mode == "nb_only": 
-                prediction_idx = np.argmax(nb_probabilities)
-                prediction_label = self.label_encoder.inverse_transform([prediction_idx])[0]
-                return {"prediction": prediction_label, "confidence": max(nb_probabilities), "model": "MultinomialNB (Only Mode)", "evidence": None}
+            if mode == "nb_only":
+                pred_idx = np.argmax(nb_probabilities)
+                pred_label = self.label_encoder.inverse_transform([pred_idx])[0]
+                return {"prediction": pred_label, "confidence": max(nb_probabilities), "model": "MultinomialNB (Only)", "evidence": None}
             
-            # Hybrid mode triage logic
-            if spam_prob < 0.15: 
+            spam_prob = nb_probabilities[np.where(self.label_encoder.classes_ == 'spam')[0][0]]
+            if spam_prob < 0.15:
                 return {"prediction": "ham", "confidence": 1 - spam_prob, "model": "MultinomialNB", "evidence": None}
-            if spam_prob > 0.85: 
+            if spam_prob > 0.85:
                 return {"prediction": "spam", "confidence": spam_prob, "model": "MultinomialNB", "evidence": None}
 
-        # --- Stage 2: Deep Analysis with Vector Search (or if KNN_ONLY mode) ---
-        if self.faiss_index and self.faiss_index.ntotal > 0 and (mode == "hybrid" or mode == "knn_only"):
+        # --- Stage 2: k-NN Logic ---
+        if self.faiss_index and self.faiss_index.ntotal > 0 and mode in ["hybrid", "knn_only"]:
             k = 5
             query_embedding = self._get_embeddings([text], "query", batch_size=1)
             scores, indices = self.faiss_index.search(query_embedding.astype('float32'), k)
-            
             neighbor_labels = [self.all_labels[i] for i in indices[0]]
             prediction = max(set(neighbor_labels), key=neighbor_labels.count)
             confidence = neighbor_labels.count(prediction) / k
-            
-            evidence = [
-                {"similar_message": self.all_messages[idx], "label": self.all_labels[idx], "similarity_score": float(scores[0][i])}
-                for i, idx in enumerate(indices[0])
-            ]
+            evidence = [{"similar_message": self.all_messages[idx], "label": self.all_labels[idx], "similarity_score": float(scores[0][i])} for i, idx in enumerate(indices[0])]
             return {"prediction": prediction, "confidence": confidence, "model": "Vector Search (k-NN)", "evidence": evidence}
         
-        # Fallback if no models are loaded for the current mode, or if FAISS index is empty
-        print(f"🔴 WARNING: No model/index loaded for current mode ({mode}). Falling back.")
+        # --- Fallback if the designated model for the mode is unavailable ---
+        print(f"🔴 WARNING: No model/index loaded for current mode ('{mode}'). Falling back.")
         return {"prediction": "ham", "confidence": 0.5, "model": "Fallback", "evidence": None}
