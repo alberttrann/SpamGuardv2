@@ -1,15 +1,17 @@
 **UI CHANGE 1**: Added "Dismiss" button for analyzed result and the option to provide "bulk" data for re-training
 
-<img width="1825" height="584" alt="image" src="https://github.com/user-attachments/assets/315bd6d8-6061-4cc9-ab63-d218f4c8f934" />
+<img width="1825" height="584" alt="image" src="https://github.com/user-attachments/assets/5a75e86f-1d8a-4fb3-a4cf-8332d1cfe22e" />
 
 
 **UI CHANGE 2**: Added Evaluation Section
 
-<img width="1797" height="794" alt="image" src="https://github.com/user-attachments/assets/ef90703a-f30c-4763-a0b9-a84f87eaa7d5" />
+<img width="1797" height="794" alt="image" src="https://github.com/user-attachments/assets/ddd4dec5-9d12-4581-9219-20c7be6f9aae" />
 
-<img width="1797" height="952" alt="Screenshot 2025-08-08 230643" src="https://github.com/user-attachments/assets/25760d22-7bbc-46cf-9e34-4fd7abdee51a" />
+<img width="1797" height="794" alt="image" src="https://github.com/user-attachments/assets/872b9def-4006-4937-ab3d-d67dcc739d24" />
 
-<img width="1837" height="309" alt="image" src="https://github.com/user-attachments/assets/e8503d7b-466d-4935-9954-121a52a1f1c1" />
+<img width="1797" height="952" alt="image" src="https://github.com/user-attachments/assets/7e1aacb7-45c6-48c3-8dc6-e7819a557ae4" />
+
+<img width="1837" height="309" alt="image" src="https://github.com/user-attachments/assets/7d95a623-5d2e-431b-8d39-4fdd485a3ce3" />
 
 
 For this part, if you want to do evaluation on an uploaded file, remember to delete the pasted messages inside the "paste text" sub-section, if you have previously pasted some texts there before
@@ -18,17 +20,17 @@ And vice versa, if you want to do evaluation on the pasted texts, remember to de
 
 **UI CHANGE 3**: Added Model Interpretation for MultinomialNB
 
-<img width="909" height="822" alt="image" src="https://github.com/user-attachments/assets/07c711fa-0cbe-4a0a-b1c9-3100fcbc55c0" />
+<img width="909" height="822" alt="image" src="https://github.com/user-attachments/assets/424d1fb9-c03e-4519-a9aa-47409b21bbf4" />
 
 
 **UI CHANGE 4**: Added Model Management & Registry
 
-<img width="1790" height="510" alt="image" src="https://github.com/user-attachments/assets/1cb6800e-e2a9-4201-aa53-7ebfd72ea78a" />
+<img width="1790" height="510" alt="image" src="https://github.com/user-attachments/assets/6c3806f0-8591-44b7-a103-6eaea39c8ea5" />
 
 
 **UI CHANGE 5**: Added Interactive Threshold Simulation
 
-<img width="1797" height="275" alt="image" src="https://github.com/user-attachments/assets/db318fa2-918a-4d9c-b33e-109aaf8c8f61" />
+<img width="1797" height="275" alt="image" src="https://github.com/user-attachments/assets/4db88ede-4ed1-4d0a-a9fc-3fb7b9ea59cc" />
 
 
 
@@ -353,7 +355,7 @@ The catastrophic failure of the V1 architecture prompted a complete redesign (V2
 
 **Master Benchmark Table: Section 2 - Specialized Architectures (Complete & Final)**
 
-<img width="442" height="699" alt="image" src="https://github.com/user-attachments/assets/1141bb77-af99-4858-8eea-127011c81b04" />
+<img width="442" height="699" alt="image" src="https://github.com/user-attachments/assets/fbc4b7ba-9ae0-4980-8860-066ba7a511a1" />
 
 *before_270.csv is the csv file before 270 new tricky ham messages were added in. HOWEVER, this is not the original biased csv, this is after the llm-augmentation, and this is also the dataset used to train the models that we did eval on the easy 92-message hold-out testset
 2cls_spam_text_cls.csv is the current most latest csv with 270 new tricky ham messages already in, and it's also the dataset that we use to retrain our architectures to deal with the new mixed_test_set and only_tricky_ham_test_set
@@ -385,6 +387,8 @@ the local qwen2.5-7B-Instruct that's been applied advanced prompting techniques 
 |  **2o**<br/> | **Hybrid System**<br/> | **(+270 Tricky)**<br/> | **Mixed (Hard)**<br/> | **95.33%**<br/> | **5.14**<br/> | **4**<br/> | 3<br/> | **0.96**<br/> | **0.94**<br/> | **0.92**<br/> |
 |   |  |  |  |  |  |  |  |  |  |  |
 |  **2p**<br/> | MultinomialNBOnly<br/> | **(+270 Tricky)**<br/> | Tricky Ham<br/> | 92.31%<br/> | 0.24<br/> | 4<br/> | ---<br/> | 0.92<br/> | ---<br/> | ---<br/> |
+| **2q** | `k-NN Search` Only | **(+270 Tricky)** | Tricky Ham | **94.23%** | 1.95 | 3 | --- | **0.94** | --- | --- |
+| **2r** | **`Hybrid System`** | **(+270 Tricky)** | **Tricky Ham** | **94.23%** | 4.77 | **3** | --- | **0.94** | --- | --- |
 
 ²*Spam-related metrics are not applicable (---) for the Tricky Ham test set as it contains no spam samples.*
 
@@ -577,7 +581,7 @@ This is the ultimate stress test, composed entirely of legitimate messages desig
 
 ### **Part 7: Generalization on Out-of-Domain Datasets**
 
-<img width="517" height="694" alt="image" src="https://github.com/user-attachments/assets/90e1a9b4-8277-4eda-afa3-93de3496700b" />
+<img width="517" height="694" alt="image" src="https://github.com/user-attachments/assets/720b52ff-d88a-4550-a153-f6203cc74b16" />
 
 
 The final phase of this project was to perform a rigorous evaluation of the SpamGuard system's ability to generalize to new, unseen data from entirely different domains. This analysis benchmarks several key models:
