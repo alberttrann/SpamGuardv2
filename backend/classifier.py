@@ -45,6 +45,8 @@ class SpamGuardClassifier:
     def load(self):
         """
         Loads classifier components based on the active configuration from the registry.
+        It now uses an intelligent caching system for the FAISS index to avoid
+        slow re-computation.
         """
         print("--- LAZY LOADING: Initializing SpamGuard AI Classifier with current config ---")
         self.is_loaded = False # Reset loaded state for a fresh load
@@ -83,47 +85,54 @@ class SpamGuardClassifier:
                 self.transformer_model = AutoModel.from_pretrained(MODEL_NAME).to(self.device).eval()
                 print(f"✅ Transformer model loaded on {self.device}.")
         else:
+            # Ensure these are None if not in a k-NN mode
             self.transformer_model = None
-            print("INFO: Skipping Transformer load (mode is NB only).")
+            self.tokenizer = None
+            self.device = None
 
-
-        # --- 3. Build/Load FAISS Index (Conditional) ---
+        # --- 3. Build/Load FAISS Index (Conditional with Caching) ---
         if mode in ["hybrid", "knn_only"]:
-            knn_data_path = os.path.join(DATA_DIR, knn_dataset_file)
-            
-            if not os.path.exists(knn_data_path):
-                print(f"🔴 WARNING: k-NN dataset file '{knn_dataset_file}' not found. FAISS index cannot be built.")
-                self.all_messages = []; self.all_labels = []; self.faiss_index = None
+            if not knn_dataset_file:
+                 print(f"🔴 WARNING: No k-NN dataset file configured. FAISS index cannot be built.")
+                 self.all_messages = []; self.all_labels = []; self.faiss_index = None
             else:
-                df_knn_data = pd.read_csv(knn_data_path, quotechar='"', on_bad_lines='skip')
-                df_knn_data.dropna(subset=['Message', 'Category'], inplace=True)
-                self.all_messages = df_knn_data["Message"].astype(str).tolist()
-                self.all_labels = df_knn_data["Category"].tolist()
-                
-                faiss_index_filename = f"faiss_index_{knn_dataset_file.replace('.', '_')}.bin"
-                FAISS_INDEX_CACHED_PATH = os.path.join(MODELS_DIR, faiss_index_filename)
-                
-                cache_is_valid = (
-                    os.path.exists(FAISS_INDEX_CACHED_PATH) and
-                    os.path.getmtime(FAISS_INDEX_CACHED_PATH) >= os.path.getmtime(knn_data_path)
-                )
-                
-                if cache_is_valid:
-                    print(f"✅ Found valid cache for '{knn_dataset_file}'. Loading FAISS index from disk...")
-                    self.faiss_index = faiss.read_index(FAISS_INDEX_CACHED_PATH)
-                    print("✅ FAISS index loaded from cache.")
+                knn_data_path = os.path.join(DATA_DIR, knn_dataset_file)
+                if not os.path.exists(knn_data_path):
+                    print(f"🔴 WARNING: k-NN dataset file '{knn_dataset_file}' not found. FAISS index cannot be built.")
+                    self.all_messages = []; self.all_labels = []; self.faiss_index = None
                 else:
-                    print(f"🔴 Cache for '{knn_dataset_file}' is stale/not found. Rebuilding FAISS index...")
-                    embeddings = self._get_embeddings(self.all_messages, "passage")
-                    if embeddings.shape[0] > 0:
-                        self.faiss_index = faiss.IndexFlatIP(embeddings.shape[1])
-                        self.faiss_index.add(embeddings.astype('float32'))
-                        print(f"💾 Saving new FAISS index to cache: {FAISS_INDEX_CACHED_PATH}")
-                        faiss.write_index(self.faiss_index, FAISS_INDEX_CACHED_PATH)
-                        print("✅ FAISS index rebuilt and cached.")
+                    df_knn_data = pd.read_csv(knn_data_path, quotechar='"', on_bad_lines='skip')
+                    df_knn_data.dropna(subset=['Message', 'Category'], inplace=True)
+                    self.all_messages = df_knn_data["Message"].astype(str).tolist()
+                    self.all_labels = df_knn_data["Category"].tolist()
+                    
+                    # --- THIS IS THE CORRECTED CACHING LOGIC ---
+                    faiss_index_filename = f"faiss_index_{knn_dataset_file.replace('.', '_')}.bin"
+                    FAISS_INDEX_CACHED_PATH = os.path.join(MODELS_DIR, faiss_index_filename)
+                    
+                    cache_is_valid = (
+                        os.path.exists(FAISS_INDEX_CACHED_PATH) and
+                        os.path.getmtime(FAISS_INDEX_CACHED_PATH) >= os.path.getmtime(knn_data_path)
+                    )
+                    
+                    if cache_is_valid:
+                        print(f"✅ Found valid cache for '{knn_dataset_file}'. Loading FAISS index from disk...")
+                        self.faiss_index = faiss.read_index(FAISS_INDEX_CACHED_PATH)
+                        print("✅ FAISS index loaded from cache.")
                     else:
-                        self.faiss_index = None
-                        print("🔴 WARNING: No data to build FAISS index for k-NN.")
+                        print(f"🔴 Cache for '{knn_dataset_file}' is stale or not found. Rebuilding FAISS index...")
+                        embeddings = self._get_embeddings(self.all_messages, "passage")
+                        if embeddings.shape[0] > 0:
+                            self.faiss_index = faiss.IndexFlatIP(embeddings.shape[1])
+                            self.faiss_index.add(embeddings.astype('float32'))
+                            print(f"💾 Saving new FAISS index to cache: {FAISS_INDEX_CACHED_PATH}")
+                            # Ensure the 'models' directory exists before writing
+                            os.makedirs(MODELS_DIR, exist_ok=True)
+                            faiss.write_index(self.faiss_index, FAISS_INDEX_CACHED_PATH)
+                            print("✅ FAISS index rebuilt and cached.")
+                        else:
+                            self.faiss_index = None
+                            print("🔴 WARNING: No data to build FAISS index for k-NN.")
         else:
             self.faiss_index = None; self.all_messages = []; self.all_labels = []
             print("INFO: Skipping FAISS index build (mode is NB only).")

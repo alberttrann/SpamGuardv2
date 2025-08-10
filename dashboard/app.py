@@ -98,6 +98,14 @@ def get_config():
 def classify_message(message):
     try: response = requests.post(f"{API_BASE_URL}/classify", json={"text": message}); response.raise_for_status(); return response.json()
     except requests.exceptions.RequestException as e: st.error(f"API Error: {e}"); return None
+def bulk_classify(messages: list):
+    try:
+        response = requests.post(f"{API_BASE_URL}/bulk_classify", json={"messages": messages})
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"API Error during bulk classification: {e}")
+        return None
 def send_feedback(message, correct_label):
     try: response = requests.post(f"{API_BASE_URL}/feedback", json={"message": message, "correct_label": correct_label}); response.raise_for_status(); st.toast(f"✅ Feedback sent!")
     except requests.exceptions.RequestException as e: st.error(f"API Error: {e}")
@@ -405,182 +413,114 @@ else:
     
     st.divider()
 
-# --- SECTION 5: BATCH EVALUATION & TESTING (FINAL, CONFIG-AWARE VERSION) ---
-    st.header("5. Batch Evaluation & Testing")
-    st.write(
-        "Evaluate the performance of the **currently active model and operational configuration** on a batch of labeled messages."
-    )
+# --- SECTION 5: BATCH EVALUATION & TESTING (FINAL, SIMPLIFIED, AND CORRECT) ---
+st.header("5. Batch Evaluation & Testing")
+st.write(
+    "Evaluate the performance of the **currently active model and operational configuration** on a batch of labeled messages. "
+    "This uses the live backend classifier for a true end-to-end test."
+)
+# NOTE: The k-NN dataset selection has been correctly moved to Section 2 (Model Management).
+# This section will now automatically use the globally configured settings.
 
-    eval_tab1, eval_tab2 = st.tabs(["📤 Upload File", "📝 Paste Text"])
-    user_input_text_stream = None
-    with eval_tab1:
-        eval_file = st.file_uploader("Upload a .txt or .csv file for evaluation", type=["txt", "csv"], key="eval_uploader")
-        if eval_file: user_input_text_stream = io.StringIO(eval_file.getvalue().decode("utf-8"))
-    with eval_tab2:
-        eval_text_area = st.text_area("Paste labeled messages for evaluation", height=250, placeholder='"spam","..."\n"ham","..."', key="eval_text_area")
-        if eval_text_area: user_input_text_stream = io.StringIO(eval_text_area)
+eval_tab1, eval_tab2 = st.tabs(["📤 Upload File", "📝 Paste Text"])
+user_input_text_stream = None
+with eval_tab1:
+    eval_file = st.file_uploader("Upload a .txt or .csv file for evaluation", type=["txt", "csv"], key="eval_uploader")
+    if eval_file: user_input_text_stream = io.StringIO(eval_file.getvalue().decode("utf-8"))
+with eval_tab2:
+    eval_text_area = st.text_area("Paste labeled messages for evaluation", height=250, placeholder='"spam","..."\n"ham","..."', key="eval_text_area")
+    if eval_text_area: user_input_text_stream = io.StringIO(eval_text_area)
 
-    if user_input_text_stream:
-        # The config is read from the backend, not selected here.
-        if st.button("Run Batch Evaluation", use_container_width=True, type="primary", key="run_batch_eval_button"):
-            if 'evaluation_results' in st.session_state:
-                del st.session_state['evaluation_results']
-                
-            user_input_text_stream.seek(0)
-            true_labels, messages_to_eval, records, errors = parse_labeled_data_from_stream(user_input_text_stream)
+if user_input_text_stream:
+    if st.button("Run Batch Evaluation", use_container_width=True, type="primary", key="run_batch_eval_button"):
+        # Clear any stale results from a previous run
+        if 'evaluation_results' in st.session_state:
+            del st.session_state['evaluation_results']
             
-            if errors: [st.warning(error) for error in errors]
-            
-            if messages_to_eval:
-                with st.spinner(f"Performing evaluation on {len(messages_to_eval)} messages..."):
-                    current_config = get_config()
-                    registry_data = get_models()
-                    active_id = registry_data.get("active_model_id") if registry_data else None
-                    if not current_config or not active_id:
-                        st.error("Could not determine active model or configuration."); st.stop()
-                    
-                    mode = current_config.get("mode")
-                    if mode == "nb_only":
-                        st.info(f"Evaluating Naive Bayes model `{active_id}` in `{mode.upper()}` mode.")
-                    elif mode == "knn_only":
-                        knn_dataset_file = current_config.get("knn_dataset_file")
-                        st.info(f"Evaluating k-NN model in `{mode.upper()}` mode, using `{knn_dataset_file}` for the index.")
-                    else: # Hybrid mode
-                        knn_dataset_file = current_config.get("knn_dataset_file")
-                        st.info(f"Evaluating Hybrid System with NB model `{active_id}` and k-NN index from `{knn_dataset_file}`.")
+        user_input_text_stream.seek(0)
+        true_labels, messages_to_eval, records, errors = parse_labeled_data_from_stream(user_input_text_stream)
+        
+        if errors: [st.warning(error) for error in errors]
+        
+        if messages_to_eval:
+            with st.spinner(f"Classifying {len(messages_to_eval)} messages using the live backend..."):
+                # --- THIS IS THE SIMPLIFIED AND CORRECT LOGIC ---
+                # Call the simple backend endpoint. The backend handles all the complex logic.
+                list_of_results = bulk_classify(messages_to_eval)
 
-                    try:
-                        # --- Initialize all variables before the logic branches ---
-                        final_results_detailed = []
-                        raw_nb_probs_list = []
-                        pipeline, le, spam_idx = (None, None, None)
-                        faiss_index, db_labels = (None, None)
-                        
-                        # Step A: Conditionally load Naive Bayes components
-                        if mode in ["hybrid", "nb_only"]:
-                            st.info(f"Loading Naive Bayes model '{active_id}'...")
-                            model_details = registry_data["models"][active_id]
-                            pipeline_path = os.path.join(MODELS_DIR, model_details["pipeline_file"])
-                            encoder_path = os.path.join(MODELS_DIR, model_details["encoder_file"])
-                            if not os.path.exists(pipeline_path) or not os.path.exists(encoder_path):
-                                st.error(f"FATAL: NB Model files for '{active_id}' not found."); st.stop()
-                            pipeline = joblib.load(pipeline_path); le = joblib.load(encoder_path)
-                            spam_idx = np.where(le.classes_ == 'spam')[0][0]
-                            st.info("Naive Bayes model loaded.")
-
-                        # Step B: Conditionally load k-NN components
-                        if mode in ["hybrid", "knn_only"]:
-                            knn_dataset_file = current_config.get("knn_dataset_file")
-                            training_csv_path = os.path.join(DATA_DIR, knn_dataset_file)
-                            st.info(f"Building FAISS index from: {knn_dataset_file}...")
-                            df_train = pd.read_csv(training_csv_path, quotechar='"', on_bad_lines='skip')
-                            df_train.dropna(subset=['Message'], inplace=True)
-                            db_messages = df_train["Message"].astype(str).tolist(); db_labels = df_train["Category"].tolist()
-                            passage_embeddings = get_embeddings(db_messages, "passage")
-                            faiss_index = faiss.IndexFlatIP(passage_embeddings.shape[1]); faiss_index.add(passage_embeddings.astype('float32'))
-                            st.info("FAISS index built.")
-
-                        # Step C: Loop through messages and apply the correct logic
-                        start_time_total = time.perf_counter() #<-- FIX: Initialize before loop
-                        for message in messages_to_eval:
-                            prediction_label, model_used = "ham", "Fallback"
-                            if mode == "nb_only":
-                                numeric_pred = pipeline.predict([message])[0]; prediction_label = le.inverse_transform([numeric_pred])[0]; model_used = "MultinomialNB (Only)"
-                            elif mode == "knn_only":
-                                q_emb = get_embeddings([message], "query", 1); _, indices = faiss_index.search(q_emb, 5)
-                                n_labels = [db_labels[i] for i in indices[0]]; prediction_label = max(set(n_labels), key=n_labels.count); model_used = "k-NN (Only)"
-                            elif mode == "hybrid":
-                                nb_probs = pipeline.predict_proba([message])[0]; spam_prob = nb_probs[spam_idx]
-                                raw_nb_probs_list.append(spam_prob)
-                                if spam_prob > 0.85: prediction_label, model_used = "spam", "MultinomialNB"
-                                elif spam_prob < 0.15: prediction_label, model_used = "ham", "MultinomialNB"
-                                else:
-                                    model_used = "Vector Search (k-NN)"; q_emb = get_embeddings([message], "query", 1); _, indices = faiss_index.search(q_emb, 5)
-                                    n_labels = [db_labels[i] for i in indices[0]]; prediction_label = max(set(n_labels), key=n_labels.count)
-                            final_results_detailed.append({"prediction": prediction_label, "model": model_used})
-                        
-                        total_time_s = time.perf_counter() - start_time_total #<-- FIX: Use initialized variable
-
+                if list_of_results:
+                    # Check if the backend returned an error (e.g., if it's not ready)
+                    if any("error" in r for r in list_of_results):
+                        st.error(f"Backend returned an error: {list_of_results[0].get('error', 'Unknown error')}")
+                    else:
                         st.session_state.evaluation_results = {
-                            "model_id": active_id, "true_labels": true_labels,
-                            "final_results_detailed": final_results_detailed,
-                            "raw_nb_probs": raw_nb_probs_list, #<-- FIX: Use initialized variable
-                            "total_time_s": total_time_s, "messages": messages_to_eval,
+                            "true_labels": true_labels,
+                            "final_results_detailed": list_of_results,
+                            "messages": messages_to_eval,
                             "records_for_retraining": records,
                         }
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"An error occurred during evaluation: {e}")
+                else:
+                    st.error("Failed to get results from the backend. The server might be down or busy.")
 
-    # --- RESULTS DISPLAY BLOCK  ---
-    if st.session_state.evaluation_results:
-        eval_data = st.session_state.evaluation_results
-        st.subheader(f"Evaluation Results for Model: `{eval_data['model_id']}`")
+# --- RESULTS DISPLAY BLOCK ---
+if st.session_state.evaluation_results:
+    eval_data = st.session_state.evaluation_results
+    config = get_config()
+    st.subheader(f"Evaluation Results for `{config.get('mode', 'N/A').upper()}` Mode")
+    
+    true_labels = eval_data["true_labels"]
+    final_results_detailed = eval_data["final_results_detailed"]
+    pred_labels = [p['prediction'] for p in final_results_detailed]
+    
+    # --- Performance Summary ---
+    st.subheader("Performance Summary")
+    summary_col1, summary_col2 = st.columns(2)
+    with summary_col1:
+        accuracy = accuracy_score(true_labels, pred_labels)
+        st.metric("Overall Accuracy", f"{accuracy:.2%}")
         
-        true_labels = eval_data["true_labels"]
-        final_results_detailed = eval_data["final_results_detailed"]
-        pred_labels = [p['prediction'] for p in final_results_detailed]
+        # We don't have detailed timing per message, so we show the overall report
+        st.text("Classification Report:")
+        report_df = pd.DataFrame(classification_report(true_labels, pred_labels, labels=["ham", "spam"], output_dict=True, zero_division=0)).transpose()
+        st.dataframe(report_df)
 
-        st.subheader("Performance Summary")
-        summary_col1, summary_col2 = st.columns(2)
-        with summary_col1:
-            accuracy = accuracy_score(true_labels, pred_labels)
-            st.metric("Overall Accuracy", f"{accuracy:.2%}")
-            st.text("Performance Metrics:")
-            total_time_s = eval_data['total_time_s']
-            avg_time_ms = (total_time_s * 1000) / len(true_labels)
-            st.write(f"**Total Prediction Time:** {total_time_s:.4f} seconds")
-            st.write(f"**Average Prediction Time:** {avg_time_ms:.2f} ms/message")
-            
-            # Only show hybrid stats if it was a hybrid run
-            if any(r['model'] == 'Vector Search (k-NN)' for r in final_results_detailed):
-                nb_count = sum(1 for r in final_results_detailed if r['model'] == 'MultinomialNB')
-                knn_count = len(true_labels) - nb_count
-                st.write(f"**NB Triage Usage:** {nb_count / len(true_labels):.1%}")
-                st.write(f"**k-NN Escalation Usage:** {knn_count / len(true_labels):.1%}")
+    with summary_col2:
+        cm = confusion_matrix(true_labels, pred_labels, labels=["ham", "spam"])
+        fig, ax = plt.subplots(figsize=(5, 4))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax, xticklabels=["ham", "spam"], yticklabels=["ham", "spam"])
+        ax.set_title("Confusion Matrix")
+        ax.set_xlabel("Predicted Label"); ax.set_ylabel("True Label")
+        st.pyplot(fig)
 
-        with summary_col2:
-            st.text("Classification Report:")
-            report_df = pd.DataFrame(classification_report(true_labels, pred_labels, labels=["ham", "spam"], output_dict=True, zero_division=0)).transpose()
-            st.dataframe(report_df)
-            cm = confusion_matrix(true_labels, pred_labels, labels=["ham", "spam"])
-            fig, ax = plt.subplots(figsize=(4, 3)); sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax, xticklabels=["ham", "spam"], yticklabels=["ham", "spam"])
-            ax.set_title("Confusion Matrix"); ax.set_xlabel("Predicted Label"); ax.set_ylabel("True Label"); st.pyplot(fig)
-
-        with st.expander(f"⬇️ Click to see detailed breakdown for all {len(true_labels)} messages"):
-            df = pd.DataFrame({
-                "True Label": true_labels,
-                "Predicted Label": [r['prediction'] for r in final_results_detailed],
-                "Correct?": ["✅" if t == r['prediction'] else "❌" for t, r in zip(true_labels, final_results_detailed)],
-                "Model Used": [r['model'] for r in final_results_detailed],
-                "Message": eval_data["messages"]
-            })
-            st.dataframe(df, use_container_width=True)
-
-        st.subheader("🔬 Interactive Threshold Simulation")
-        st.write("Simulate the hybrid system's performance using the raw probabilities from the active Naive Bayes model.")
-        confidence_threshold_percent = st.slider("Required Confidence Threshold (%)", min_value=51, max_value=99, value=85, step=1)
-        confidence_threshold = confidence_threshold_percent / 100.0
-        raw_nb_probs = eval_data["raw_nb_probs"]
-        simulated_predictions = []
-        for i, spam_prob in enumerate(raw_nb_probs):
-            if spam_prob > confidence_threshold: simulated_predictions.append("spam")
-            elif spam_prob < (1 - confidence_threshold): simulated_predictions.append("ham")
-            else: simulated_predictions.append(pred_labels[i])
-        sim_col1, sim_col2 = st.columns(2)
-        with sim_col1:
-            sim_accuracy = accuracy_score(true_labels, simulated_predictions); st.metric("Simulated Accuracy", f"{sim_accuracy:.2%}")
-        with sim_col2:
-            nb_usage_count = sum(1 for p in raw_nb_probs if p > confidence_threshold or p < (1 - confidence_threshold)); st.metric("NB Triage Usage", f"{nb_usage_count / len(true_labels):.1%}")
-        st.subheader("Next Steps")
-        action_col1, action_col2 = st.columns(2)
-        with action_col1:
-            if st.button("➕ Add All to Training Data", use_container_width=True):
-                with st.spinner("Adding data..."):
-                    response = send_bulk_feedback(eval_data["records_for_retraining"])
-                    if response and response['status'] == 'success':
-                        st.success(response['message']); st.info("Remember to click 'Retrain Model'!")
-                        st.session_state.evaluation_results = None; st.rerun()
-        with action_col2:
-            if st.button("🗑️ Dismiss Results", use_container_width=True):
-                st.session_state.evaluation_results = None; st.rerun()
+    # --- Expander for Detailed Breakdown ---
+    with st.expander(f"⬇️ Click to see detailed breakdown for all {len(true_labels)} messages"):
+        df_breakdown = pd.DataFrame({
+            "True Label": true_labels,
+            "Predicted Label": [r.get('prediction', 'N/A') for r in final_results_detailed],
+            "Correct?": ["✅" if t == r.get('prediction') else "❌" for t, r in zip(true_labels, final_results_detailed)],
+            "Model Used": [r.get('model', 'N/A') for r in final_results_detailed],
+            "Confidence": [f"{r.get('confidence', 0):.2%}" for r in final_results_detailed],
+            "Message": eval_data["messages"]
+        })
+        st.dataframe(df_breakdown, use_container_width=True)
+    
+    # --- Interactive Threshold Simulation ---
+    # The simulation part was complex and prone to bugs when using the live endpoint.
+    # For this final version, we'll remove it to ensure stability. The core evaluation
+    # is the most important feature. If you want to add it back later, it would require
+    # the dedicated `/get_nb_probabilities` endpoint again.
+    
+    # --- Action Buttons ---
+    st.subheader("Next Steps")
+    action_col1, action_col2 = st.columns(2)
+    with action_col1:
+        if st.button("➕ Add All to Training Data", use_container_width=True):
+            with st.spinner("Adding data..."):
+                response = send_bulk_feedback(eval_data["records_for_retraining"])
+                if response and response['status'] == 'success':
+                    st.success(response['message']); st.info("Remember to click 'Retrain Model'!")
+                    st.session_state.evaluation_results = None; st.rerun()
+    with action_col2:
+        if st.button("🗑️ Dismiss Results", use_container_width=True):
+            st.session_state.evaluation_results = None; st.rerun()

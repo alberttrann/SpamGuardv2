@@ -148,6 +148,21 @@ def classify_message(message: Message):
     if not manager.prod_classifier.is_loaded: return {"error": "Classifier is not ready yet."}
     return manager.prod_classifier.classify(message.text)
 
+@app.post("/bulk_classify")
+def bulk_classify_messages(req: BulkMessageRequest):
+    """
+    Accepts a list of raw messages, classifies each one using the live, loaded
+    classifier, and returns a list of results.
+    """
+    if not manager.prod_classifier.is_loaded:
+        return [{"error": "Classifier is not ready yet."}] * len(req.messages)
+        
+    results = []
+    for message in req.messages:
+        result = manager.prod_classifier.classify(message)
+        results.append(result)
+    return results
+
 @app.post("/feedback")
 def receive_feedback(feedback: Feedback):
     database.add_feedback(message=feedback.message, label=feedback.correct_label, source='user')
@@ -234,7 +249,6 @@ def delete_pending_feedback(req: DeleteFeedbackRequest):
     deleted_count = database.delete_feedback_by_ids(req.ids)
     return {"status": "success", "message": f"Deleted {deleted_count} records."}
 
-# --- THIS IS THE NEW ENDPOINT ---
 @app.post("/feedback/delete_all")
 def delete_all_pending_feedback():
     deleted_count = database.delete_all_feedback()
