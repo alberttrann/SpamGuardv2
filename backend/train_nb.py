@@ -70,9 +70,7 @@ def retrain_and_save():
     joblib.dump(pipeline, os.path.join(OUTPUT_MODELS_DIR, pipeline_filename))
     joblib.dump(le, os.path.join(OUTPUT_MODELS_DIR, encoder_filename))
     
-    # Update the registry with the new model information
     registry.add_model_to_registry(model_id, pipeline_filename, encoder_filename)
-    # Set this newly trained model as the active one
     registry.set_active_model(model_id)
     
     print(f"--- Retraining complete. New model version '{model_id}' created and activated. ---")

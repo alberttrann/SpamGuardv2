@@ -1,4 +1,4 @@
-# backend/main.py (Final, Definitive Non-Blocking Version)
+# backend/main.py 
 
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
@@ -9,7 +9,6 @@ import os
 from fastapi.responses import StreamingResponse
 import asyncio
 
-# Use relative imports for local modules
 from .classifier import SpamGuardClassifier
 from . import database
 from . import llm_generator
@@ -18,11 +17,8 @@ from . import registry
 
 app = FastAPI(title="SpamGuard AI API", version="3.0.0") # Final version bump
 
-# The singleton is still created lazy, but it will be loaded by the loader script
-# or by the first /status call after the flag file is present.
 classifier_singleton = SpamGuardClassifier() 
 
-# Define the path for our communication flag file
 FLAG_FILE_PATH = os.path.join(os.path.dirname(__file__), "_ready.flag")
 
 @app.on_event("startup")
@@ -41,6 +37,10 @@ class LLMRequest(BaseModel): provider: str; model: str; api_key: str | None = No
 class BulkFeedbackItem(BaseModel): label: str; message: str
 class BulkMessageRequest(BaseModel): messages: List[str]    
 class ActivateModelRequest(BaseModel): model_id: str
+class ConfigRequest(BaseModel):
+    mode: str
+    knn_dataset_file: str
+
 
 # --- API Endpoints ---
 
@@ -67,7 +67,6 @@ def read_root(): return {"message": "Welcome to the SpamGuard AI API. Use the /s
 def classify_message(message: Message):
     if not classifier_singleton.is_loaded:
         return {"error": "Classifier is not ready. Please ensure the loader script has completed."}
-    # This is now a fast, synchronous call because the model is already loaded.
     return classifier_singleton.classify(message.text)
 
 @app.post("/feedback")
@@ -110,7 +109,6 @@ def list_models():
 
 @app.post("/models/activate")
 def activate_model(req: ActivateModelRequest):
-    # Activating a model is just changing the registry. The loader will pick it up.
     try:
         registry.set_active_model(req.model_id)
         # The model is now stale. Remove the flag and require a new load.
@@ -133,9 +131,26 @@ def get_nb_probabilities(req: BulkMessageRequest):
         return {"error": "Classifier is not ready."}
     return classifier_singleton.get_nb_probabilities(req.messages)
 
+@app.get("/config")
+def get_config():
+    """Returns the current classifier configuration."""
+    return registry.get_current_config()
+
+@app.post("/config")
+def set_config(req: ConfigRequest):
+    """Sets the classifier's operational mode and k-NN dataset, then reloads."""
+    try:
+        registry.set_current_config(req.mode, req.knn_dataset_file)
+        # Trigger reload of the classifier to pick up new config
+        classifier_singleton.reload()
+        return {"status": "success", "message": "Classifier configuration updated."}
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    except Exception as e:
+        return {"status": "error", "message": f"An unexpected error occurred: {e}"}
+
 @app.post("/generate_data")
 async def generate_data_stream(req: LLMRequest, raw_request: Request):
-    # This endpoint is already async and streaming, it's fine as is.
     async def event_stream():
         while True:
             if await raw_request.is_disconnected(): break

@@ -10,14 +10,36 @@ MODELS_DIR = os.path.join(PROJECT_ROOT, 'models')
 REGISTRY_PATH = os.path.join(MODELS_DIR, 'registry.json')
 
 def _get_registry():
-    """Reads the registry file from disk. Returns an empty dict if not found."""
+    """Reads the registry file from disk. Initializes default config if not found."""
     if not os.path.exists(REGISTRY_PATH):
-        return {"models": {}, "active_model_id": None}
+        return {
+            "models": {},
+            "active_model_id": None,
+            "current_config": { # --- NEW: Default configuration ---
+                "mode": "hybrid", # 'hybrid', 'nb_only', 'knn_only'
+                "knn_dataset_file": "2cls_spam_text_cls.csv" # Default to latest data
+            }
+        }
     try:
         with open(REGISTRY_PATH, 'r') as f:
-            return json.load(f)
+            data = json.load(f)
+            # Ensure new config fields exist for old registry files
+            if "current_config" not in data:
+                data["current_config"] = {
+                    "mode": "hybrid",
+                    "knn_dataset_file": "2cls_spam_text_cls.csv"
+                }
+            return data
     except (json.JSONDecodeError, IOError):
-        return {"models": {}, "active_model_id": None}
+        print("Warning: Registry file corrupted or unreadable. Starting fresh.")
+        return {
+            "models": {},
+            "active_model_id": None,
+            "current_config": {
+                "mode": "hybrid",
+                "knn_dataset_file": "2cls_spam_text_cls.csv"
+            }
+        }
 
 def _save_registry(registry_data):
     """Saves the registry data to disk."""
@@ -70,3 +92,23 @@ def get_active_model_paths():
 def get_all_models():
     """Returns all model metadata from the registry."""
     return _get_registry()
+
+def get_current_config():
+    """Returns the current classifier configuration."""
+    registry = _get_registry()
+    return registry["current_config"]
+
+def set_current_config(mode: str, knn_dataset_file: str):
+    """Sets the classifier's operational mode and k-NN dataset."""
+    registry = _get_registry()
+    if mode not in ["hybrid", "nb_only", "knn_only"]:
+        raise ValueError(f"Invalid mode '{mode}'. Must be 'hybrid', 'nb_only', or 'knn_only'.")
+    
+    data_dir_path = os.path.join(os.path.dirname(__file__), 'data')
+    if not os.path.exists(os.path.join(data_dir_path, knn_dataset_file)):
+        print(f"Warning: Selected k-NN dataset file '{knn_dataset_file}' not found in '{data_dir_path}'.")
+
+    registry["current_config"]["mode"] = mode
+    registry["current_config"]["knn_dataset_file"] = knn_dataset_file
+    _save_registry(registry)
+    print(f"Classifier config updated: Mode='{mode}', k-NN Dataset='{knn_dataset_file}'")
