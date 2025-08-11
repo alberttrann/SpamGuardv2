@@ -158,6 +158,15 @@ def delete_all_feedback():
     except requests.exceptions.RequestException as e:
         st.error(f"API Error: Could not discard all feedback. {e}")
         return None
+def get_datasets():
+    try: response = requests.get(f"{API_BASE_URL}/datasets"); response.raise_for_status(); return response.json()
+    except: return {}
+def update_model_notes(notes):
+    try: response = requests.post(f"{API_BASE_URL}/models/notes", json={"notes": notes}); response.raise_for_status(); return response.json()
+    except: return None
+def update_dataset_notes(notes):
+    try: response = requests.post(f"{API_BASE_URL}/datasets/notes", json={"notes": notes}); response.raise_for_status(); return response.json()
+    except: return None
 
 # --- Main Application Logic ---
 st.title("🛡️ SpamGuard AI: An Adaptive Spam Filtering System")
@@ -203,61 +212,117 @@ else:
 
     st.divider()
 
-    # SECTION 2: MODEL MANAGEMENT & REGISTRY
+    # --- SECTION 2: MODEL MANAGEMENT & REGISTRY (FINAL OVERHAUL) ---
     st.header("2. Model Management & Registry")
     st.write("View and manage trained model versions and classifier operational settings.")
+
     tab_model_select, tab_config = st.tabs(["⚙️ Model Version", "🛠️ Operational Config"])
+
     with tab_model_select:
+        st.subheader("Model Versions")
         if st.button("Refresh Model List", key="refresh_model_list_button"): st.rerun() 
-        with st.spinner("Fetching model registry..."): registry_data = get_models()
+        
+        registry_data = get_models()
         if registry_data and registry_data.get("models"):
+            models = registry_data["models"]
             active_model_id = registry_data.get("active_model_id")
-            sorted_models = sorted(registry_data["models"].items(), key=lambda i: i[1]['creation_date'], reverse=True)
-            models_list = [{"ID": model_id, "Created On": datetime.fromisoformat(details["creation_date"]).strftime("%Y-%m-%d %H:%M:%S"), "Status": "✅ Active" if model_id == active_model_id else ""} for model_id, details in sorted_models]
-            models_df = pd.DataFrame(models_list).set_index("ID"); st.dataframe(models_df, use_container_width=True)
+            
+            # Prepare DataFrame for the data editor
+            models_df = pd.DataFrame.from_dict(models, orient='index')
+            models_df['id'] = models_df.index
+            models_df['active'] = models_df['id'] == active_model_id
+            # Ensure 'note' column exists
+            if 'note' not in models_df.columns:
+                models_df['note'] = ""
+
+            edited_models_df = st.data_editor(
+                models_df[['id', 'creation_date', 'note', 'active']],
+                column_order=("active", "id", "note", "creation_date"),
+                column_config={
+                    "id": st.column_config.TextColumn("Model ID", disabled=True),
+                    "creation_date": st.column_config.DatetimeColumn("Created On", disabled=True, format="YYYY-MM-DD HH:mm:ss"),
+                    "note": st.column_config.TextColumn("Note", width="large", help="Add a description for this model version."),
+                    "active": st.column_config.CheckboxColumn("Active", disabled=True)
+                }, use_container_width=True, hide_index=True, key="model_editor"
+            )
+            if st.button("Save Model Notes", key="save_model_notes_button"):
+                notes_to_save = edited_models_df.set_index('id')['note'].to_dict()
+                with st.spinner("Saving notes..."):
+                    update_model_notes(notes_to_save)
+                st.toast("Model notes saved!")
+                time.sleep(1)
+                st.rerun()
+            
             st.subheader("Activate a Different Model")
-            inactive_models = [m["ID"] for m in models_list if m["Status"] == ""]
+            inactive_models = edited_models_df[~edited_models_df['active']]['id'].tolist()
             if inactive_models:
-                model_to_activate = st.selectbox("Select a model version to make active:", inactive_models, key="model_selector")
+                model_to_activate = st.selectbox("Select model to activate:", inactive_models, key="model_selector")
                 if st.button("Activate Selected Model", type="primary"):
                     with st.spinner(f"Activating model '{model_to_activate}'..."):
                         response = set_active_model(model_to_activate)
-                        if response and response['status'] == 'success': st.success(response['message']); st.info("The new model is now loading in the background."); time.sleep(2); st.rerun()
+                        if response and response['status'] == 'success':
+                            st.success(response['message']); st.info("The new model is now loading in the background."); time.sleep(2); st.rerun()
                         else: st.error("Failed to activate model.")
             else: st.info("There are no other inactive models to activate.")
         elif registry_data is None: st.error("Could not connect to the backend API.")
-        else: st.warning("No models found. Please retrain a model in Section 3.")
+        else: st.warning("No models found in the registry.")
+
     with tab_config:
         st.subheader("Classifier Operational Mode")
         if config_response:
             mode_options = ["hybrid", "nb_only", "knn_only"]
             selected_mode = st.radio("Choose classification mode:", options=mode_options, index=mode_options.index(config_response["mode"]), horizontal=True)
-            if selected_mode in ["hybrid", "knn_only"]:
-                st.markdown("---"); st.subheader("k-NN Indexing Dataset")
-                st.info("Select the dataset for the k-NN Vector Search to build its knowledge base from.")
-                available_datasets = [f for f in os.listdir(DATA_DIR) if f.endswith('.csv')]
-                try: default_dataset_index = available_datasets.index(config_response["knn_dataset_file"])
-                except ValueError: default_dataset_index = 0
-                selected_knn_dataset = st.selectbox("Select dataset for k-NN index:", options=available_datasets, index=default_dataset_index)
-            else: selected_knn_dataset = config_response["knn_dataset_file"]
-            if (selected_mode != config_response["mode"] or selected_knn_dataset != config_response["knn_dataset_file"]):
-                if st.button("Apply Configuration Changes", type="primary"):
-                    with st.spinner("Applying new configuration..."):
-                        response = set_config(selected_mode, selected_knn_dataset)
-                        if response and response['status'] == 'success': st.success(response['message']); st.info("The new configuration is loading in the background."); time.sleep(2); st.rerun()
-                        else: st.error("Failed to apply configuration.")
-            else: st.info("Current configuration is applied.")
-        else: st.error("Could not fetch current configuration from backend.")
+
+            st.markdown("---"); st.subheader("k-NN Indexing Dataset")
+            st.info("Select which dataset the k-NN/Hybrid models build their knowledge from.")
+            
+            datasets_reg = get_datasets()
+            if datasets_reg:
+                datasets_df = pd.DataFrame.from_dict(datasets_reg, orient='index')
+                datasets_df['filename'] = datasets_df.index
+                datasets_df['active'] = datasets_df['filename'] == config_response.get("knn_dataset_file")
+                if 'note' not in datasets_df.columns:
+                    datasets_df['note'] = ""
+
+                edited_datasets_df = st.data_editor(
+                    datasets_df[['filename', 'note', 'active']],
+                    column_order=("active", "filename", "note"),
+                    column_config={
+                        "filename": st.column_config.TextColumn("Dataset File", disabled=True),
+                        "note": st.column_config.TextColumn("Note", width="large", help="Add a description for this dataset."),
+                        "active": st.column_config.CheckboxColumn("Active", disabled=True)
+                    },
+                    use_container_width=True, hide_index=True, key="dataset_editor"
+                )
+                if st.button("Save Dataset Notes"):
+                    notes_to_save = edited_datasets_df.set_index('filename')['note'].to_dict()
+                    with st.spinner("Saving notes..."):
+                        update_dataset_notes(notes_to_save)
+                    st.toast("Dataset notes saved!")
+                    time.sleep(1)
+                    st.rerun()
+                
+                selected_knn_dataset = config_response.get("knn_dataset_file") # Default to current
+
+                if (selected_mode != config_response["mode"]):
+                    if st.button("Apply Configuration Changes", type="primary"):
+                        with st.spinner("Applying new configuration..."):
+                            response = set_config(selected_mode, selected_knn_dataset)
+                            if response and response['status'] == 'success':
+                                st.success(response['message']); st.info("The new configuration is loading in the background."); time.sleep(2); st.rerun()
+                            else: st.error("Failed to apply configuration.")
+                else: st.info("Current configuration is applied.")
+            else: st.warning("No datasets found in the data directory.")
+        else: st.error("Could not fetch current configuration.")
 
     st.divider()
 
-# --- SECTION 3: MODEL PERFORMANCE & LEARNING ---
+# --- SECTION 3: MODEL PERFORMANCE & LEARNING (ENHANCED STAGING) ---
     st.header("3. Model Performance & Learning")
-    analytics_col, training_col = st.columns([0.4, 0.6]) # Give more space for the training/review column
+    analytics_col, training_col = st.columns([0.4, 0.6])
 
     with analytics_col:
         st.subheader("Dataset Analytics")
-        st.write("View statistics for the currently active k-NN dataset.")
         if st.button("Refresh Analytics"): st.rerun()
         analytics_data = get_analytics()
         if analytics_data:
@@ -266,12 +331,9 @@ else:
             total_new = analytics_data['new_ham_count'] + analytics_data['new_spam_count']
             st.metric("Total Messages in Core Dataset", f"{total_base:,}")
             st.metric("New Messages in Staging Area", f"{total_new:,}", help=f"User: {analytics_data['user_contribution']}, LLM: {analytics_data['llm_contribution']}")
-            chart_data = pd.DataFrame({"Type": ["Ham", "Spam"], "Core Dataset": [analytics_data['base_ham_count'], analytics_data['base_spam_count']], "Staging Area": [analytics_data['new_ham_count'], analytics_data['new_spam_count']]}).set_index('Type')
-            st.bar_chart(chart_data)
+            chart_data = pd.DataFrame({"Type": ["Ham", "Spam"], "Core Dataset": [analytics_data['base_ham_count'], analytics_data['base_spam_count']], "Staging Area": [analytics_data['new_ham_count'], analytics_data['new_spam_count']]}).set_index('Type'); st.bar_chart(chart_data)
         else: st.warning("Could not fetch dataset analytics.")
-        st.markdown("---")
-        st.subheader("🧠 Model Interpretation (XAI)")
-        st.write("See the top keywords the active Naive Bayes model uses.")
+        st.markdown("---"); st.subheader("🧠 Model Interpretation (XAI)"); st.write("See the top keywords the active Naive Bayes model uses.")
         if st.button("Analyze Model Keywords"):
             with st.spinner("Analyzing model..."): explanation = get_model_explanation()
             if explanation and not explanation.get("error"): st.session_state.explanation = explanation
@@ -283,33 +345,32 @@ else:
 
     with training_col:
         st.subheader("Continuous Learning & Data Staging")
-        st.write("Review all pending feedback in the staging area. Commit the data you want to keep, then retrain.")
+        st.write("Review all pending feedback in the staging area. Commit kept data, then retrain.")
         pending_feedback = get_all_feedback()
         if pending_feedback:
             df = pd.DataFrame(pending_feedback)
-            df['keep'] = True
+            
             st.write(f"**{len(df)} messages are in the staging area.**")
             
-            # --- THIS IS THE FIX: Explicitly list the columns to display ---
-            # This ensures the 'id' column is available to the logic but not shown to the user.
-            edited_df = st.data_editor(
-                df, 
-                column_order=("keep", "label", "message", "source"),
-                column_config={
-                    "id": None, # Hide the ID column
-                    "timestamp": None, # Hide the timestamp column
-                    "keep": st.column_config.CheckboxColumn("Keep?", default=True),
-                    "label": st.column_config.TextColumn("Label", disabled=True),
-                    "message": st.column_config.TextColumn("Message", disabled=True, width="large"),
-                    "source": st.column_config.TextColumn("Source", disabled=True)
-                }, 
+            search_term = st.text_input("Search messages in staging area:", key="staging_search")
+            if search_term:
+                df = df[df['message'].str.contains(search_term, case=False, na=False)]
+            
+            df['keep'] = True
+            edited_df = st.data_editor(df, column_order=("keep", "label", "source", "message"),
+                column_config={ "id": None, "timestamp": None, "keep": st.column_config.CheckboxColumn("Keep?", default=True), "label": st.column_config.TextColumn("Label", disabled=True), "message": st.column_config.TextColumn("Message", disabled=True, width="large"), "source": st.column_config.TextColumn("Source", disabled=True)},
                 use_container_width=True, hide_index=True, key="feedback_editor"
             )
             
             st.markdown("---")
-            # --- THIS IS THE FIX: The new button layout ---
-            review_col1, review_col2, review_col3 = st.columns([1.2, 1, 1.5])
             
+            sel_col1, sel_col2, sel_col3, sel_col4 = st.columns(4)
+            if sel_col1.button("Select All Visible", use_container_width=True):
+                st.session_state.edited_df = edited_df
+                st.session_state.edited_df['keep'] = True
+                st.warning("Select/Unselect functionality requires a different implementation pattern. For now, manual checking is supported.")
+
+            review_col1, review_col2, review_col3 = st.columns([1.2, 1, 1.5])
             with review_col1:
                 if st.button("🗑️ Discard Unchecked Items", use_container_width=True):
                     records_to_discard_ids = edited_df[~edited_df["keep"]]["id"].tolist()
@@ -317,16 +378,12 @@ else:
                         with st.spinner(f"Discarding {len(records_to_discard_ids)} records..."): delete_feedback(records_to_discard_ids)
                         st.success("Selected records discarded."); time.sleep(1); st.rerun()
                     else: st.warning("No records were selected (unchecked) for discarding.")
-            
             with review_col2:
                 if st.button("🔥 Discard ALL Items", use_container_width=True, type="secondary"):
-                    with st.spinner("Discarding all staging data..."):
-                        response = delete_all_feedback() # New API function
-                    if response: st.success(response['message'])
-                    time.sleep(1); st.rerun()
-
+                    with st.spinner("Discarding all staging data..."): response = delete_all_feedback()
+                    if response: st.success(response['message']); time.sleep(1); st.rerun()
             with review_col3:
-                st.write("Add all **kept** messages to the dataset and retrain.")
+                st.write("Add all **kept** messages and retrain.")
                 is_busy = status_response and status_response.get("is_loading_new_config", False)
                 if st.button("Retrain with Kept Data", use_container_width=True, type="primary", disabled=is_busy):
                     records_to_discard_ids = edited_df[~edited_df["keep"]]["id"].tolist()

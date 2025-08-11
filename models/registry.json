@@ -4,25 +4,29 @@
             "creation_date": "2025-08-03T22:25:42.356187",
             "pipeline_file": "nb_multinomial_20250803_222542_pipeline.joblib",
             "encoder_file": "nb_multinomial_20250803_222542_encoder.joblib",
-            "performance_metrics": null
+            "performance_metrics": null,
+            "note": "this is trained on the post-augmentation dataset before_270.csv (this set doesn't have the new 270 tricky ham yet)"
         },
         "nb_multinomial_20250804_075009": {
             "creation_date": "2025-08-04T07:50:10.250917",
             "pipeline_file": "nb_multinomial_20250804_075009_pipeline.joblib",
             "encoder_file": "nb_multinomial_20250804_075009_encoder.joblib",
-            "performance_metrics": null
+            "performance_metrics": null,
+            "note": "this is trained on before_deysi(which is before_270, but with new 270 tricky ham messages, but not have deysi_train.txt)"
         },
         "nb_multinomial_20250808_214414": {
             "creation_date": "2025-08-08T21:44:14.467963",
             "pipeline_file": "nb_multinomial_20250808_214414_pipeline.joblib",
             "encoder_file": "nb_multinomial_20250808_214414_encoder.joblib",
-            "performance_metrics": null
+            "performance_metrics": null,
+            "note": "this is trained on before_enron(which is before_deysi, now having deysi_train.txt content, but not have enron_train.txt)"
         },
         "nb_multinomial_20250809_065804": {
             "creation_date": "2025-08-09T06:58:04.761288",
             "pipeline_file": "nb_multinomial_20250809_065804_pipeline.joblib",
             "encoder_file": "nb_multinomial_20250809_065804_encoder.joblib",
-            "performance_metrics": null
+            "performance_metrics": null,
+            "note": "this is trained on 2cls_spam_text_cls(which is before enron, now having enron_train.txt content)"
         }
     },
     "active_model_id": "nb_multinomial_20250809_065804",

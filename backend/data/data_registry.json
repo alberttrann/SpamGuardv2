@@ -1,0 +1,17 @@
+{
+    "2cls_spam_text_cls.csv": {
+        "note": "the newest dataset, which is before_enron, but having enron-train.txt content"
+    },
+    "2cls_spam_text_cls_original.csv": {
+        "note": "the original biased dataset"
+    },
+    "before_270.csv": {
+        "note": "the post-augmentation dataset, but not having new 270 tricky ham"
+    },
+    "before_deysi.csv": {
+        "note": "before_270, but now having 270 tricky ham, but not having deysi_train.txt yet"
+    },
+    "before_enron.csv": {
+        "note": "before_deysi but now having deysi_train.txt, but not having enron_train.txt yet"
+    }
+}

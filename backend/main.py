@@ -134,6 +134,11 @@ class BulkMessageRequest(BaseModel): messages: List[str]
 class ActivateModelRequest(BaseModel): model_id: str
 class ConfigRequest(BaseModel): mode: str; knn_dataset_file: str
 class DeleteFeedbackRequest(BaseModel): ids: List[int]
+class ModelNotesRequest(BaseModel):
+    notes: Dict[str, str] # e.g., {"model_id_1": "note 1", "model_id_2": "note 2"}
+
+class DatasetNotesRequest(BaseModel):
+    notes: Dict[str, str] # e.g., {"data.csv": "note 1"}
 
 # --- API Endpoints ---
 @app.get("/status")
@@ -214,6 +219,27 @@ def set_config(req: ConfigRequest, background_tasks: BackgroundTasks):
     registry.set_current_config(req.mode, req.knn_dataset_file)
     background_tasks.add_task(load_prod_classifier)
     return {"status": "success", "message": "New configuration update started in the background."}
+
+@app.get("/datasets")
+def list_datasets():
+    """Returns the data registry, synced with files on disk."""
+    return registry.get_data_registry_with_files()
+
+@app.post("/models/notes")
+def update_model_notes(req: ModelNotesRequest):
+    try:
+        registry.update_model_notes(req.notes)
+        return {"status": "success", "message": "Model notes updated successfully."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/datasets/notes")
+def update_dataset_notes(req: DatasetNotesRequest):
+    try:
+        registry.update_dataset_notes(req.notes)
+        return {"status": "success", "message": "Dataset notes updated successfully."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # --- Classifier Intelligence Endpoints ---
 @app.get("/explain_model")
