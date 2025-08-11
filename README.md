@@ -68,6 +68,8 @@ SpamGuard is designed to improve over time through a robust feedback loop:
 ### 4. Explainable AI (XAI)
 To build trust and provide insight into the model's decision-making process, the dashboard includes a Model Interpretation feature. It analyzes the active `MultinomialNB` model and displays the top 20 keywords that it has learned are the most powerful indicators for both the `spam` and `ham` classes.
 
+You can also check out the "explaination" for results k-NN Search, in the section 1 of SpamGuard(if k-NN is used)
+
 ### 5. LLM-Powered Data Augmentation
 The system features a non-blocking, asynchronous module for generating synthetic training data using various local or cloud-based LLMs (Ollama, LM Studio, OpenRouter).
 *   **Continuous Generation:** Users can start a continuous generation task that runs in the background.
