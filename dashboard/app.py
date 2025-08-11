@@ -494,8 +494,7 @@ if st.session_state.evaluation_results:
 
     st.markdown("---")
     st.subheader("Performance Metrics")
-    
-    # Calculate timing stats from the detailed results
+        # Calculate timing stats from the detailed results
     total_time_ms = sum(r.get('time_ms', 0) for r in final_results_detailed)
     avg_time_ms = total_time_ms / len(true_labels) if true_labels else 0
     
@@ -505,12 +504,37 @@ if st.session_state.evaluation_results:
 
     # Only show hybrid stats if it was a hybrid run
     if config.get('mode') == 'hybrid':
-        nb_count = sum(1 for r in final_results_detailed if r['model'] == 'MultinomialNB')
-        knn_count = len(true_labels) - nb_count
+        # Calculate detailed usage and accuracy stats
+        nb_results = [res for i, res in enumerate(final_results_detailed) if res['model'] == 'MultinomialNB']
+        knn_results = [res for i, res in enumerate(final_results_detailed) if res['model'] != 'MultinomialNB']
         
+        nb_indices = [i for i, res in enumerate(final_results_detailed) if res['model'] == 'MultinomialNB']
+        knn_indices = [i for i, res in enumerate(final_results_detailed) if res['model'] != 'MultinomialNB']
+
+        nb_count = len(nb_results)
+        knn_count = len(knn_results)
+
+        nb_correct = sum(1 for i in nb_indices if final_results_detailed[i]['prediction'] == true_labels[i])
+        knn_correct = sum(1 for i in knn_indices if final_results_detailed[i]['prediction'] == true_labels[i])
+        
+        nb_accuracy = (nb_correct / nb_count * 100) if nb_count > 0 else 0
+        knn_accuracy = (knn_correct / knn_count * 100) if knn_count > 0 else 0
+
+        st.markdown("---")
+        st.write("**Hybrid System Triage Breakdown**")
         usage_col1, usage_col2 = st.columns(2)
-        usage_col1.metric("NB Triage Usage", f"{nb_count / len(true_labels):.1%}")
-        usage_col2.metric("k-NN Escalation Usage", f"{knn_count / len(true_labels):.1%}")
+        
+        # Display the new, more detailed metrics
+        usage_col1.metric(
+            label="NB Triage Usage",
+            value=f"{nb_count / len(true_labels):.1%}",
+            help=f"Handled {nb_count} messages. Correct: {nb_correct} ({nb_accuracy:.1f}%)"
+        )
+        usage_col2.metric(
+            label="k-NN Escalation Usage",
+            value=f"{knn_count / len(true_labels):.1%}",
+            help=f"Handled {knn_count} messages. Correct: {knn_correct} ({knn_accuracy:.1f}%)"
+        )
     
     st.markdown("---")
 
