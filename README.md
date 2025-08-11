@@ -24,12 +24,91 @@
 
 ![alt text](image-12.png)
 
+
+# SpamGuard: An Adaptive Spam Filtering System
+
+SpamGuard is a complete, end-to-end machine learning application designed for real-time spam detection. It utilizes a sophisticated hybrid classification architecture, combining the speed of classical NLP models with the semantic power of modern transformer-based vector search.
+
+The project is built as a full-stack MLOps platform, featuring a decoupled FastAPI backend for model serving and a Streamlit dashboard for real-time analysis, model management, continuous learning, and evaluation. The system is designed to be **adaptive**, allowing it to be retrained and improved with new data over time to combat evolving spam tactics.
+
+**Core Technology Stack:**
+*   **Backend:** FastAPI, Uvicorn
+*   **Machine Learning:** Scikit-Learn, PyTorch, Transformers, FAISS
+*   **Data Handling:** Pandas, SQLite, NLTK
+*   **Frontend:** Streamlit
+
+---
+
+## Features Overview
+
+SpamGuard is more than just a classifier; it's a complete toolkit for managing and improving a production-grade spam detection model.
+
+### 1. Hybrid Classification Engine
+The core of SpamGuard is its two-stage classification process, designed to balance speed and accuracy:
+*   **Stage 1: High-Speed Triage:** A fine-tuned `Multinomial Naive Bayes` classifier, using a TF-IDF feature representation with N-grams, provides an initial, lightning-fast prediction. It confidently handles the vast majority of "easy" cases.
+*   **Stage 2: Deep Semantic Analysis:** For messages that the Naive Bayes model finds ambiguous, the task is escalated to a powerful `k-Nearest Neighbors (k-NN)` search. This stage uses `intfloat/multilingual-e5-base` sentence embeddings to find the most semantically similar messages in a high-speed FAISS vector index, making a final, context-aware prediction.
+
+### 2. Full MLOps Dashboard
+The Streamlit frontend provides a comprehensive suite of tools for managing the entire model lifecycle:
+
+*   **Real-time Classification:** A simple interface to test the live model with any message.
+*   **Model Management & Registry:**
+    *   **Model Versioning:** Every time the model is retrained, a new, timestamped version is created and logged in a central registry.
+    *   **Model Activation:** Users can seamlessly "hot-swap" the active production model to any historical version with a single click, allowing for instant rollbacks if a new model underperforms.
+    *   **Traceability:** An interactive table allows users to add and edit descriptive **notes** for each model version and dataset, ensuring perfect traceability of what each model was trained on.
+*   **Operational Configuration:** Users have full control over the classifier's behavior, with the ability to switch between **Hybrid**, **Naive Bayes Only**, or **k-NN Only** modes on the fly. The dataset used for k-NN indexing is also fully configurable via the UI.
+
+### 3. Continuous Learning & Data Curation
+SpamGuard is designed to improve over time through a robust feedback loop:
+*   **Multi-Source Feedback:** The system collects new training data from three sources: single-message corrections from the real-time classifier, bulk uploads of labeled `.txt` or `.csv` files, and LLM-generated synthetic data.
+*   **Data Staging Area:** All new data is sent to a "staging" database, not directly into the training set.
+*   **Interactive Review:** A powerful UI featuring an interactive `st.data_editor` table allows users to search, filter, and review all pending feedback. Users can select which messages to keep or discard before committing them to the main dataset.
+*   **Non-Blocking Retraining:** The entire retraining process is offloaded to a background task, allowing the application to remain fully operational while a new model version is being trained.
+
+### 4. Explainable AI (XAI)
+To build trust and provide insight into the model's decision-making process, the dashboard includes a Model Interpretation feature. It analyzes the active `MultinomialNB` model and displays the top 20 keywords that it has learned are the most powerful indicators for both the `spam` and `ham` classes.
+
+### 5. LLM-Powered Data Augmentation
+The system features a non-blocking, asynchronous module for generating synthetic training data using various local or cloud-based LLMs (Ollama, LM Studio, OpenRouter).
+*   **Continuous Generation:** Users can start a continuous generation task that runs in the background.
+*   **Live Review:** Generated messages appear in the UI in real-time for review.
+*   **Curated Addition:** Users have full control to select which synthetic messages are valuable and send only those to the staging area for retraining, preventing low-quality LLM outputs from polluting the dataset.
+
+---
+
+## System Architecture & Performance Optimizations
+
+The SpamGuard application was architected from the ground up to handle the challenges of serving large, in-memory machine learning models in a responsive and stable way.
+
+### 1. Lazy Loading via a Separate Loader Process
+*   **Problem:** The initial model load, especially the creation of the FAISS index from thousands of embeddings, can take several minutes and would normally freeze the web server on startup.
+*   **Solution:** We implemented a **separate loader process** (`backend/loader.py`). The main FastAPI server starts instantly and is completely stateless. A second, independent Python script is run, which performs the entire slow, blocking model-loading process.
+*   **Mechanism:** Communication is handled via a simple "flag file" (`_ready.flag`). The loader script creates this file upon successful completion. The Streamlit UI polls a `/status` endpoint on the server, which in turn checks for the existence of this flag file. This completely isolates the blocking I/O from the web server, ensuring instant startups and reloads.
+
+### 2. True Asynchronous & Non-Blocking Operations
+*   **Problem:** Long-running tasks initiated by a user, such as retraining or LLM data generation, would block the API and make the UI unresponsive.
+*   **Solution:** We leverage Python's `threading` and FastAPI's `BackgroundTasks`.
+    *   **Initial Load:** The main server spawns a dedicated background `threading.Thread` on startup to handle the initial model load, keeping the main event loop free.
+    *   **Retraining & Configuration Changes:** All long-running administrative tasks (retraining, activating a new model, changing the k-NN dataset) are offloaded to `BackgroundTasks`. The API endpoint returns an immediate "Task Started" response to the user, and the UI polls the `/status` endpoint to see when the task is complete. This creates a fully non-blocking user experience.
+
+### 3. Intelligent Caching of FAISS Index
+*   **Problem:** Re-calculating the sentence embeddings and rebuilding the FAISS index is the most time-consuming part of the loading process. Doing this on every startup is extremely inefficient.
+*   **Solution:** The `SpamGuardClassifier` implements an intelligent caching mechanism.
+    *   **Mechanism:** After an index is built, it is saved to a versioned file on disk (e.g., `faiss_index_before_enron_csv.bin`). On subsequent loads, the classifier checks the modification time of the cache file against the modification time of its source `.csv` data file (`os.path.getmtime`).
+    *   **Behavior:** If the source data has not changed, the pre-built index is loaded directly from disk, which is orders of magnitude faster than rebuilding it. The index is only rebuilt from scratch if the underlying data has been modified (i.e., after a retraining cycle).
+
+### 4. The Singleton Pattern
+*   **Problem:** Loading multiple instances of the large classifier models would consume excessive memory and lead to inconsistent states.
+*   **Solution:** The backend uses a single, global "manager" object (`manager = AppStateManager()`) that holds the one and only instance of the production classifier. All API endpoints interact with this single, shared instance, ensuring a consistent and memory-efficient state across the entire application. This singleton is made thread-safe using `threading.Lock()` to prevent race conditions during critical operations like model hot-swapping.
+
+---
 Version 1 using GaussianNB is here: _https://github.com/alberttrann/SpamGuard_
 
 To use SpamGuard, from the root directory, type uvicorn backend.main:app --reload, then in a new terminal, streamlit run dashboard/app.py
 
 If there is any model-related issue, consider deleting the models dir, and type python -m backend.train_nb for retraining and creating a fresh model dir, before running SpamGuard
 
+---
 
 ### **KEY TECHNICAL POINTS OF THE PROJECT**
 
@@ -526,7 +605,7 @@ This benchmark against other specialized models provides the ultimate context fo
 
 This final analysis consolidates all previous findings into a direct, "best-of-the-best" comparison across our three distinct evaluation environments. We pit the top-performing specialized model (mshenoda/roberta-spam), the top-performing LLM with the best prompting strategy, and our final, retrained SpamGuard Hybrid system against each other.
 
-**## Arena 1: The Baseline - Performance on Easy 92-Msg Test Set**
+**Arena 1: The Baseline - Performance on Easy 92-Msg Test Set**
 
 This test establishes the baseline performance on a simple, traditional spam detection task using the evaluation_data.txt file. This arena compares the raw accuracy of different approaches before they are challenged by adversarially crafted, context-heavy messages.
 |  **Model**<br/> | **Architecture Type**<br/> | **Overall Accuracy**<br/> | **Avg. Time (ms)**<br/> | **Ham Recall (Safety)**<br/> | **Spam Recall (Effectiveness)**<br/> | **False Positives (FP)**<br/> | **False Negatives (FN)**<br/> |
