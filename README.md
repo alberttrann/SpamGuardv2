@@ -80,26 +80,31 @@ The system features a non-blocking, asynchronous module for generating synthetic
 
 The SpamGuard application was architected from the ground up to handle the challenges of serving large, in-memory machine learning models in a responsive and stable way.
 
-### 1. Lazy Loading via a Separate Loader Process
-*   **Problem:** The initial model load, especially the creation of the FAISS index from thousands of embeddings, can take several minutes and would normally freeze the web server on startup.
-*   **Solution:** We implemented a **separate loader process** (`backend/loader.py`). The main FastAPI server starts instantly and is completely stateless. A second, independent Python script is run, which performs the entire slow, blocking model-loading process.
-*   **Mechanism:** Communication is handled via a simple "flag file" (`_ready.flag`). The loader script creates this file upon successful completion. The Streamlit UI polls a `/status` endpoint on the server, which in turn checks for the existence of this flag file. This completely isolates the blocking I/O from the web server, ensuring instant startups and reloads.
+### 1. Asynchronous Startup with Background Threading
+*   **Problem:** The initial model load, especially the creation of the FAISS index from thousands of embeddings, can take several minutes. A standard "eager loading" approach would freeze the web server on startup, making it slow to launch and frustrating to develop with.
+*   **Solution:** We implemented a **truly asynchronous startup process**.
+*   **Mechanism:** When the FastAPI server starts, its `startup` event immediately spawns a dedicated, long-running background thread (`threading.Thread`). This background thread is solely responsible for performing the entire slow, blocking model-loading process. The main server thread, which handles user requests, is **not blocked** and starts instantly.
+*   **Communication:** A simple "flag file" (`_ready.flag`) is used to communicate the state. The background thread creates this file only after all models are successfully loaded into memory. The Streamlit UI polls a lightweight `/status` endpoint, which in turn checks for the existence of this flag file. This completely isolates the blocking I/O from the web server's main event loop, ensuring instant startups and reloads.
 
-### 2. True Asynchronous & Non-Blocking Operations
+### 2. Zero-Downtime Model "Hot-Swapping"
+*   **Problem:** When a user activates a new model or changes the k-NN dataset configuration, the application needs to load a new set of large models, which is a slow process. A simple reload would cause downtime.
+*   **Solution:** The backend uses a "hot-swapping" pattern with a `ClassifierManager` that holds two instances of the classifier: one for `production` and one for `staging`.
+*   **Mechanism:** When a configuration change is requested, a background task is initiated to load the new models into the `staging` instance. During this entire time, the `production` instance continues to serve all incoming `/classify` requests without any interruption. Once the `staging` instance is fully loaded, an atomic, thread-safe swap occurs, and the new model instantly becomes the `production` model. This provides a seamless, zero-downtime experience for the end-user.
+
+### 3. Fully Non-Blocking API Endpoints
 *   **Problem:** Long-running tasks initiated by a user, such as retraining or LLM data generation, would block the API and make the UI unresponsive.
-*   **Solution:** We leverage Python's `threading` and FastAPI's `BackgroundTasks`.
-    *   **Initial Load:** The main server spawns a dedicated background `threading.Thread` on startup to handle the initial model load, keeping the main event loop free.
-    *   **Retraining & Configuration Changes:** All long-running administrative tasks (retraining, activating a new model, changing the k-NN dataset) are offloaded to `BackgroundTasks`. The API endpoint returns an immediate "Task Started" response to the user, and the UI polls the `/status` endpoint to see when the task is complete. This creates a fully non-blocking user experience.
+*   **Solution:** All potentially long-running API endpoints (`/retrain`, `/llm/start_generation`, etc.) are implemented using FastAPI's `BackgroundTasks`.
+*   **Mechanism:** When a user clicks "Retrain," the API endpoint immediately adds the entire retraining and reloading sequence as a background task and returns an instant "Task Started" response. The user can continue to use the application with the old model while the new one trains in the background. The UI polls the `/status` endpoint to track the progress and updates automatically when the new model is ready.
 
-### 3. Intelligent Caching of FAISS Index
-*   **Problem:** Re-calculating the sentence embeddings and rebuilding the FAISS index is the most time-consuming part of the loading process. Doing this on every startup is extremely inefficient.
-*   **Solution:** The `SpamGuardClassifier` implements an intelligent caching mechanism.
-    *   **Mechanism:** After an index is built, it is saved to a versioned file on disk (e.g., `faiss_index_before_enron_csv.bin`). On subsequent loads, the classifier checks the modification time of the cache file against the modification time of its source `.csv` data file (`os.path.getmtime`).
-    *   **Behavior:** If the source data has not changed, the pre-built index is loaded directly from disk, which is orders of magnitude faster than rebuilding it. The index is only rebuilt from scratch if the underlying data has been modified (i.e., after a retraining cycle).
+### 4. Intelligent Caching of FAISS Index
+*   **Problem:** Re-calculating sentence embeddings and rebuilding the FAISS index is the most time-consuming part of the loading process. Doing this on every model load is extremely inefficient.
+*   **Solution:** The `SpamGuardClassifier` implements an intelligent caching mechanism for the FAISS index.
+*   **Mechanism:** After an index is built for a specific dataset (e.g., `before_enron.csv`), it is saved to a uniquely named file on disk (e.g., `faiss_index_before_enron_csv.bin`). On subsequent loads that require the same dataset, the classifier checks the modification time of the cache file against the modification time of its source `.csv` data file (`os.path.getmtime`).
+*   **Behavior:** If the source data has not changed, the pre-built index is loaded directly from disk, which is orders of magnitude faster than rebuilding it. The index is only re-computed from scratch if the underlying data has been modified (i.e., after a retraining cycle has enriched that specific file).
 
-### 4. The Singleton Pattern
+### 5. The Singleton Pattern
 *   **Problem:** Loading multiple instances of the large classifier models would consume excessive memory and lead to inconsistent states.
-*   **Solution:** The backend uses a single, global "manager" object (`manager = AppStateManager()`) that holds the one and only instance of the production classifier. All API endpoints interact with this single, shared instance, ensuring a consistent and memory-efficient state across the entire application. This singleton is made thread-safe using `threading.Lock()` to prevent race conditions during critical operations like model hot-swapping.
+*   **Solution:** The backend uses a single, global "manager" object (`manager = AppStateManager()`) that holds the one and only instance of the production classifier and the LLM generation state. All API endpoints interact with this single, shared object, ensuring a consistent and memory-efficient state across the entire application. This singleton is made thread-safe using `threading.Lock()` to prevent race conditions during critical operations like model hot-swapping.
 
 ---
 Version 1 using GaussianNB is here: _https://github.com/alberttrann/SpamGuard_
