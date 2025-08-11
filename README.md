@@ -1,40 +1,28 @@
-**UI CHANGE 1**: Added "Dismiss" button for analyzed result and the option to provide "bulk" data for re-training
+![alt text](image.png)
 
-<img width="1825" height="584" alt="image" src="https://github.com/user-attachments/assets/5a75e86f-1d8a-4fb3-a4cf-8332d1cfe22e" />
+![alt text](image-6.png)
 
+![alt text](image-5.png)
 
-**UI CHANGE 2**: Added Evaluation Section
+![alt text](image-4.png)
 
-<img width="1797" height="794" alt="image" src="https://github.com/user-attachments/assets/ddd4dec5-9d12-4581-9219-20c7be6f9aae" />
+![alt text](image-1.png)
 
-<img width="1797" height="794" alt="image" src="https://github.com/user-attachments/assets/872b9def-4006-4937-ab3d-d67dcc739d24" />
+![alt text](image-2.png)
 
-<img width="1797" height="952" alt="image" src="https://github.com/user-attachments/assets/7e1aacb7-45c6-48c3-8dc6-e7819a557ae4" />
+![alt text](image-3.png)
 
-<img width="1837" height="309" alt="image" src="https://github.com/user-attachments/assets/7d95a623-5d2e-431b-8d39-4fdd485a3ce3" />
+![alt text](image-8.png)
 
+![alt text](image-9.png)
 
-For this part, if you want to do evaluation on an uploaded file, remember to delete the pasted messages inside the "paste text" sub-section, if you have previously pasted some texts there before
-And vice versa, if you want to do evaluation on the pasted texts, remember to delete the currently uploaded file inside the "upload file" sub-section, if you have previously uploaded any file
+![alt text](image-7.png)
 
+![alt text](image-10.png)
 
-**UI CHANGE 3**: Added Model Interpretation for MultinomialNB
+![alt text](image-11.png)
 
-<img width="909" height="822" alt="image" src="https://github.com/user-attachments/assets/424d1fb9-c03e-4519-a9aa-47409b21bbf4" />
-
-
-**UI CHANGE 4**: Added Model Management & Registry
-
-<img width="1790" height="510" alt="image" src="https://github.com/user-attachments/assets/6c3806f0-8591-44b7-a103-6eaea39c8ea5" />
-
-
-**UI CHANGE 5**: Added Interactive Threshold Simulation
-
-<img width="1797" height="275" alt="image" src="https://github.com/user-attachments/assets/4db88ede-4ed1-4d0a-a9fc-3fb7b9ea59cc" />
-
-
-
-**NOTE**: SpamGuard will display API error when you try to do any model-related task like classsify message or bulk-classifying, etc, before everything is done loaded in the backend. So just wait until everything is loaded and you see "--- SpamGuard AI Classifier is ready. ---" in the terminal
+![alt text](image-12.png)
 
 Version 1 using GaussianNB is here: _https://github.com/alberttrann/SpamGuard_
 
