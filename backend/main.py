@@ -1,7 +1,7 @@
-# backend/main.py (Final, Definitive, Fully Corrected Version)
+# backend/main.py 
 
 from fastapi import FastAPI, Request, BackgroundTasks
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict
 import threading
 import os
@@ -10,6 +10,7 @@ import json
 import numpy as np
 from fastapi.responses import StreamingResponse
 import asyncio
+from datetime import datetime
 
 # Use relative imports for local modules
 from .classifier import SpamGuardClassifier
@@ -18,7 +19,11 @@ from . import llm_generator
 from .train_nb import retrain_and_save
 from . import registry
 
-app = FastAPI(title="SpamGuard AI API", version="4.1.0") # Final version bump
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+LOGS_DIR = os.path.join(PROJECT_ROOT, 'logs')
+EVAL_LOG_PATH = os.path.join(LOGS_DIR, 'evaluation_log.json')
+
+app = FastAPI(title="SpamGuard AI API", version="4.1.0") 
 
 # --- CONSOLIDATED STATE MANAGEMENT ---
 class AppStateManager:
@@ -31,6 +36,16 @@ class AppStateManager:
         self.llm_generated_data = []
         self.llm_status_message = "Idle"
         self._lock = threading.Lock()
+class EvaluationLogEntry(BaseModel):
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    model_id: str
+    mode: str
+    knn_dataset: str
+    test_set_name: str
+    accuracy: float
+    report: Dict
+    confusion_matrix: List[List[int]]
+    note: str = ""
 
 manager = AppStateManager()
 
@@ -46,6 +61,20 @@ def load_prod_classifier():
         manager.is_loading_model = False
         manager.model_status_message = "System is ready."
     print("BACKGROUND: Production model is now loaded and ready.")
+
+def _read_eval_logs():
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    if not os.path.exists(EVAL_LOG_PATH):
+        return []
+    try:
+        with open(EVAL_LOG_PATH, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return []
+
+def _write_eval_logs(logs):
+    with open(EVAL_LOG_PATH, 'w') as f:
+        json.dump(logs, f, indent=4)
 
 def run_retraining_sequence():
     """This function handles the entire long-running retraining process."""
@@ -74,7 +103,7 @@ def run_retraining_sequence():
         manager.model_status_message = "Retraining complete. New model is active."
     print("BACKGROUND: Retraining sequence finished successfully.")
 
-# --- THIS IS THE CORRECTED, CONTINUOUS LLM GENERATION LOOP ---
+# --- CONTINUOUS LLM GENERATION LOOP ---
 async def run_llm_generation_in_background(provider, model, api_key, label_to_generate):
     """The async target for our continuous background generation task."""
     with manager._lock:
@@ -97,7 +126,6 @@ async def run_llm_generation_in_background(provider, model, api_key, label_to_ge
     # This while loop ensures continuous generation until stopped.
     while manager.is_generating_llm:
         async for item in generator_func(**kwargs):
-            # The inner loop runs once per generation, which is intended.
             with manager._lock:
                 if not manager.is_generating_llm: break # Check flag again
                 if isinstance(item, dict):
@@ -105,10 +133,10 @@ async def run_llm_generation_in_background(provider, model, api_key, label_to_ge
                     manager.llm_generated_data.append(item)
                     manager.llm_status_message = f"Generated {len(manager.llm_generated_data)} messages..."
                 else:
-                    manager.llm_status_message = item # This is a status string
+                    manager.llm_status_message = item 
         
-        if not manager.is_generating_llm: break # Check flag before sleeping
-        await asyncio.sleep(0.5) # Small delay between generating each message
+        if not manager.is_generating_llm: break 
+        await asyncio.sleep(0.5) 
         
     with manager._lock:
         manager.llm_status_message = f"Generation stopped. {len(manager.llm_generated_data)} messages ready for review."
@@ -288,3 +316,23 @@ def delete_pending_feedback(req: DeleteFeedbackRequest):
 def delete_all_pending_feedback():
     deleted_count = database.delete_all_feedback()
     return {"status": "success", "message": f"Discarded all {deleted_count} records from the staging area."}
+
+@app.post("/evaluations/log")
+def log_evaluation_result(entry: EvaluationLogEntry):
+    logs = _read_eval_logs()
+    logs.insert(0, entry.dict()) # Add new log to the top of the list
+    _write_eval_logs(logs)
+    return {"status": "success", "message": "Evaluation result logged successfully."}
+
+@app.get("/evaluations/logs")
+def get_evaluation_logs():
+    return _read_eval_logs()
+
+@app.delete("/evaluations/log/{timestamp}")
+def delete_evaluation_log(timestamp: str):
+    logs = _read_eval_logs()
+    logs_to_keep = [log for log in logs if log.get("timestamp") != timestamp]
+    if len(logs_to_keep) < len(logs):
+        _write_eval_logs(logs_to_keep)
+        return {"status": "success", "message": "Log entry deleted."}
+    return {"status": "error", "message": "Log entry not found."}

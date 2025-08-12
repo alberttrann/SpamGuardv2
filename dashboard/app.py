@@ -1,4 +1,4 @@
-# dashboard/app.py (Final, Definitive, Working Version)
+# dashboard/app.py 
 
 import streamlit as st
 import requests
@@ -54,33 +54,93 @@ def get_embeddings(texts: list, prefix: str, batch_size: int = 32):
         all_embeds.append(F.normalize(embeds, p=2, dim=1).cpu().numpy())
     return np.vstack(all_embeds)
 def parse_labeled_data_from_stream(file_stream):
+    """
+    Robustly parses a file-like object (which could be bytes or string based)
+    and correctly handles multi-line messages.
+    """
     true_labels = []; messages = []; records_for_retraining = []; errors = []
+    
+    # Determine if the stream's content is bytes or string and handle accordingly.
     try:
-        reader = csv.reader(file_stream)
-        for i, row in enumerate(reader):
-            if not row: continue
-            if len(row) != 2: errors.append(f"Line {i+1}: Invalid format."); continue
-            label, message = row; label = label.strip().lower(); message = message.strip()
-            if label not in ['ham', 'spam']: errors.append(f"Line {i+1}: Invalid label '{label}'."); continue
-            if not message: errors.append(f"Line {i+1}: Message is empty."); continue
-            true_labels.append(label); messages.append(message); records_for_retraining.append({"label": label, "message": message})
-    except Exception as e: errors.append(f"A critical error occurred: {e}")
+        # Try getting raw bytes first, for uploaded files
+        content_raw = file_stream.getvalue()
+        if isinstance(content_raw, bytes):
+            content = content_raw.decode("utf-8")
+        else:
+            content = content_raw
+    except Exception as e:
+        errors.append(f"Could not read the input stream: {e}")
+        return [], [], [], errors
+
+    lines = content.splitlines()
+    
+    current_message_lines = []
+    current_label = None
+
+    for i, line in enumerate(lines):
+        line_stripped = line.strip()
+        
+        is_new_record = False
+        potential_label = None
+        content_start_index = -1
+
+        if line_stripped.lower().startswith('ham,'):
+            is_new_record = True
+            potential_label = 'ham'
+            content_start_index = 4
+        elif line_stripped.lower().startswith('spam,'):
+            is_new_record = True
+            potential_label = 'spam'
+            content_start_index = 5
+        
+        if is_new_record:
+            # Save the previous record before starting a new one
+            if current_label and current_message_lines:
+                full_message = "\n".join(current_message_lines).strip()
+                if full_message:
+                    true_labels.append(current_label)
+                    messages.append(full_message)
+                    records_for_retraining.append({"label": current_label, "message": full_message})
+            
+            # Start the new record
+            current_label = potential_label
+            current_message_lines = [line_stripped[content_start_index:].strip()]
+        else:
+            # It's a continuation line
+            if current_label is not None:
+                current_message_lines.append(line)
+
+    # Save the very last record after the loop finishes
+    if current_label and current_message_lines:
+        full_message = "\n".join(current_message_lines).strip()
+        if full_message:
+            true_labels.append(current_label)
+            messages.append(full_message)
+            records_for_retraining.append({"label": current_label, "message": full_message})
+
+    if not records_for_retraining and lines:
+        errors.append("Could not find any valid records in the format 'ham,<message>' or 'spam,<message>'.")
+        
     return true_labels, messages, records_for_retraining, errors
 
+def bulk_classify(messages: list):
+    try:
+        response = requests.post(f"{API_BASE_URL}/bulk_classify", json={"messages": messages}, timeout=600) # Long timeout for big batches
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"API Error during bulk classification: {e}")
+        return None
+        
 # --- Configuration & Setup ---
 API_BASE_URL = "http://127.0.0.1:8000"
 st.set_page_config(page_title="SpamGuard AI", page_icon="🛡️", layout="wide")
 
 # --- Session State Initialization ---
 states_to_init = {
-    'last_classified_message': None,
-    'generating': False,
-    'generation_type': None,
-    'evaluation_results': None,
-    'backend_ready': False,
-    'generated_data_for_review': [],
-    'keep_generated_flags': [],
-    'explanation': None
+    'last_classified_message': None, 'generating': False, 'generation_type': None,
+    'evaluation_results': None, 'backend_ready': False, 'generated_data_for_review': [],
+    'keep_generated_flags': [], 'explanation': None
 }
 for key, default_value in states_to_init.items():
     if key not in st.session_state:
@@ -98,14 +158,6 @@ def get_config():
 def classify_message(message):
     try: response = requests.post(f"{API_BASE_URL}/classify", json={"text": message}); response.raise_for_status(); return response.json()
     except requests.exceptions.RequestException as e: st.error(f"API Error: {e}"); return None
-def bulk_classify(messages: list):
-    try:
-        response = requests.post(f"{API_BASE_URL}/bulk_classify", json={"messages": messages})
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        st.error(f"API Error during bulk classification: {e}")
-        return None
 def send_feedback(message, correct_label):
     try: response = requests.post(f"{API_BASE_URL}/feedback", json={"message": message, "correct_label": correct_label}); response.raise_for_status(); st.toast(f"✅ Feedback sent!")
     except requests.exceptions.RequestException as e: st.error(f"API Error: {e}")
@@ -133,6 +185,9 @@ def get_all_feedback():
 def delete_feedback(ids):
     try: response = requests.post(f"{API_BASE_URL}/feedback/delete", json={"ids": ids}); response.raise_for_status(); return response.json()
     except: return None
+def delete_all_feedback():
+    try: response = requests.post(f"{API_BASE_URL}/feedback/delete_all"); response.raise_for_status(); return response.json()
+    except requests.exceptions.RequestException as e: st.error(f"API Error: {e}"); return None
 def start_llm_generation(payload):
     try: response = requests.post(f"{API_BASE_URL}/llm/start_generation", json=payload); response.raise_for_status(); return response.json()
     except requests.exceptions.RequestException as e: st.error(f"API Error: {e}"); return None
@@ -148,25 +203,25 @@ def clear_llm_review_data():
     except requests.exceptions.RequestException as e: st.error(f"API Error: {e}"); return None
 def get_analytics():
     try: response = requests.get(f"{API_BASE_URL}/analytics"); response.raise_for_status(); return response.json()
-    except (requests.exceptions.RequestException, json.JSONDecodeError) as e: print(f"Could not fetch analytics: {e}"); return None
-def delete_all_feedback():
-    """Calls the backend to delete all records from the feedback database."""
+    except (requests.exceptions.RequestException, json.JSONDecodeError): return None
+def log_evaluation(log_entry):
+    try: response = requests.post(f"{API_BASE_URL}/evaluations/log", json=log_entry); response.raise_for_status(); return response.json()
+    except: return None
+def get_eval_logs():
+    try: response = requests.get(f"{API_BASE_URL}/evaluations/logs"); response.raise_for_status(); return response.json()
+    except: return []
+def delete_eval_log(timestamp):
+    try: response = requests.delete(f"{API_BASE_URL}/evaluations/log/{timestamp}"); response.raise_for_status(); return response.json()
+    except: return None
+def get_datasets():
+    """Fetches the data registry from the backend."""
     try:
-        response = requests.post(f"{API_BASE_URL}/feedback/delete_all")
+        response = requests.get(f"{API_BASE_URL}/datasets")
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        st.error(f"API Error: Could not discard all feedback. {e}")
-        return None
-def get_datasets():
-    try: response = requests.get(f"{API_BASE_URL}/datasets"); response.raise_for_status(); return response.json()
-    except: return {}
-def update_model_notes(notes):
-    try: response = requests.post(f"{API_BASE_URL}/models/notes", json={"notes": notes}); response.raise_for_status(); return response.json()
-    except: return None
-def update_dataset_notes(notes):
-    try: response = requests.post(f"{API_BASE_URL}/datasets/notes", json={"notes": notes}); response.raise_for_status(); return response.json()
-    except: return None
+        st.error(f"API Error: Could not fetch datasets. {e}")
+        return {}
 
 # --- Main Application Logic ---
 st.title("🛡️ SpamGuard AI: An Adaptive Spam Filtering System")
@@ -220,7 +275,8 @@ else:
 
     with tab_model_select:
         st.subheader("Model Versions")
-        if st.button("Refresh Model List", key="refresh_model_list_button"): st.rerun() 
+        if st.button("Refresh Model List", key="refresh_model_list_button"):
+            st.rerun() 
         
         registry_data = get_models()
         if registry_data and registry_data.get("models"):
@@ -231,9 +287,12 @@ else:
             models_df = pd.DataFrame.from_dict(models, orient='index')
             models_df['id'] = models_df.index
             models_df['active'] = models_df['id'] == active_model_id
-            # Ensure 'note' column exists
             if 'note' not in models_df.columns:
                 models_df['note'] = ""
+            
+            # Sort by creation date, newest first
+            models_df['creation_date'] = pd.to_datetime(models_df['creation_date'])
+            models_df = models_df.sort_values(by="creation_date", ascending=False)
 
             edited_models_df = st.data_editor(
                 models_df[['id', 'creation_date', 'note', 'active']],
@@ -263,9 +322,12 @@ else:
                         if response and response['status'] == 'success':
                             st.success(response['message']); st.info("The new model is now loading in the background."); time.sleep(2); st.rerun()
                         else: st.error("Failed to activate model.")
-            else: st.info("There are no other inactive models to activate.")
-        elif registry_data is None: st.error("Could not connect to the backend API.")
-        else: st.warning("No models found in the registry.")
+            else:
+                st.info("There are no other inactive models to activate.")
+        elif registry_data is None:
+            st.error("Could not connect to the backend API.")
+        else:
+            st.warning("No models found in the registry. Please retrain a model in Section 3.")
 
     with tab_config:
         st.subheader("Classifier Operational Mode")
@@ -273,7 +335,8 @@ else:
             mode_options = ["hybrid", "nb_only", "knn_only"]
             selected_mode = st.radio("Choose classification mode:", options=mode_options, index=mode_options.index(config_response["mode"]), horizontal=True)
 
-            st.markdown("---"); st.subheader("k-NN Indexing Dataset")
+            st.markdown("---")
+            st.subheader("k-NN Indexing Dataset")
             st.info("Select which dataset the k-NN/Hybrid models build their knowledge from.")
             
             datasets_reg = get_datasets()
@@ -283,7 +346,8 @@ else:
                 datasets_df['active'] = datasets_df['filename'] == config_response.get("knn_dataset_file")
                 if 'note' not in datasets_df.columns:
                     datasets_df['note'] = ""
-
+                
+                # Use data_editor to DISPLAY the table and EDIT notes
                 edited_datasets_df = st.data_editor(
                     datasets_df[['filename', 'note', 'active']],
                     column_order=("active", "filename", "note"),
@@ -299,21 +363,40 @@ else:
                     with st.spinner("Saving notes..."):
                         update_dataset_notes(notes_to_save)
                     st.toast("Dataset notes saved!")
-                    time.sleep(1)
-                    st.rerun()
+                    time.sleep(1); st.rerun()
                 
-                selected_knn_dataset = config_response.get("knn_dataset_file") # Default to current
+                st.markdown("---")
+                
+                # Use a separate selectbox to CHANGE the active dataset
+                st.write("**Change Active Dataset**")
+                all_dataset_files = edited_datasets_df['filename'].tolist()
+                current_active_dataset = config_response.get("knn_dataset_file")
+                current_index = all_dataset_files.index(current_active_dataset) if current_active_dataset in all_dataset_files else 0
+                
+                newly_selected_dataset = st.selectbox(
+                    "Select a dataset to make active for k-NN:",
+                    all_dataset_files,
+                    index=current_index,
+                    key="knn_dataset_selector_config"
+                )
 
-                if (selected_mode != config_response["mode"]):
+                # The "Apply" button considers changes from BOTH widgets (radio and selectbox)
+                if (selected_mode != config_response["mode"] or newly_selected_dataset != config_response["knn_dataset_file"]):
                     if st.button("Apply Configuration Changes", type="primary"):
                         with st.spinner("Applying new configuration..."):
-                            response = set_config(selected_mode, selected_knn_dataset)
+                            response = set_config(selected_mode, newly_selected_dataset)
                             if response and response['status'] == 'success':
-                                st.success(response['message']); st.info("The new configuration is loading in the background."); time.sleep(2); st.rerun()
-                            else: st.error("Failed to apply configuration.")
-                else: st.info("Current configuration is applied.")
-            else: st.warning("No datasets found in the data directory.")
-        else: st.error("Could not fetch current configuration.")
+                                st.success(response['message'])
+                                st.info("The new configuration is loading in the background. The UI will update when ready.")
+                                time.sleep(2); st.rerun()
+                            else:
+                                st.error("Failed to apply configuration.")
+                else:
+                    st.info("Current configuration is applied.")
+            else:
+                st.warning("No datasets found in the data directory.")
+        else:
+            st.error("Could not fetch current configuration from backend.")
 
     st.divider()
 
@@ -470,47 +553,43 @@ else:
     
     st.divider()
 
-# --- SECTION 5: BATCH EVALUATION & TESTING (FINAL, SIMPLIFIED, AND CORRECT) ---
-st.header("5. Batch Evaluation & Testing")
-st.write(
-    "Evaluate the performance of the **currently active model and operational configuration** on a batch of labeled messages. "
-    "This uses the live backend classifier for a true end-to-end test."
-)
-# NOTE: The k-NN dataset selection has been correctly moved to Section 2 (Model Management).
-# This section will now automatically use the globally configured settings.
+# --- SECTION 5: BATCH EVALUATION & TESTING ---
+    st.header("5. Batch Evaluation & Testing")
+    st.write("Evaluate the performance of the currently active model and operational configuration.")
+    
+    eval_tab1, eval_tab2 = st.tabs(["📤 Upload File", "📝 Paste Text"])
+    with eval_tab1:
+        uploaded_file = st.file_uploader("Upload a .txt or .csv file", type=["txt", "csv"], key="eval_uploader")
+        if uploaded_file: st.session_state.eval_input_stream = uploaded_file
+    with eval_tab2:
+        pasted_text = st.text_area("Paste labeled messages", height=250, placeholder='"spam","..."\n"ham","..."', key="eval_text_area")
+        if pasted_text: st.session_state.eval_input_stream = io.StringIO(pasted_text)
 
-eval_tab1, eval_tab2 = st.tabs(["📤 Upload File", "📝 Paste Text"])
-user_input_text_stream = None
-with eval_tab1:
-    eval_file = st.file_uploader("Upload a .txt or .csv file for evaluation", type=["txt", "csv"], key="eval_uploader")
-    if eval_file: user_input_text_stream = io.StringIO(eval_file.getvalue().decode("utf-8"))
-with eval_tab2:
-    eval_text_area = st.text_area("Paste labeled messages for evaluation", height=250, placeholder='"spam","..."\n"ham","..."', key="eval_text_area")
-    if eval_text_area: user_input_text_stream = io.StringIO(eval_text_area)
-
-if user_input_text_stream:
-    if st.button("Run Batch Evaluation", use_container_width=True, type="primary", key="run_batch_eval_button"):
-        # Clear any stale results from a previous run
-        if 'evaluation_results' in st.session_state:
-            del st.session_state['evaluation_results']
+    if st.session_state.get('eval_input_stream'):
+        if st.button("Run Batch Evaluation", use_container_width=True, type="primary", key="run_batch_eval_button"):
+            st.session_state.evaluation_results = None
+            eval_stream = st.session_state.eval_input_stream
+            if not isinstance(eval_stream, io.StringIO):
+                eval_stream = io.StringIO(eval_stream.getvalue().decode("utf-8"))
+            eval_stream.seek(0)
+            true_labels, messages_to_eval, records, errors = parse_labeled_data_from_stream(eval_stream)
             
-        user_input_text_stream.seek(0)
-        true_labels, messages_to_eval, records, errors = parse_labeled_data_from_stream(user_input_text_stream)
-        
-        if errors: [st.warning(error) for error in errors]
-        
-        if messages_to_eval:
-            with st.spinner(f"Classifying {len(messages_to_eval)} messages using the live backend..."):
-                # --- THIS IS THE SIMPLIFIED AND CORRECT LOGIC ---
-                # Call the simple backend endpoint. The backend handles all the complex logic.
-                list_of_results = bulk_classify(messages_to_eval)
+            if errors: [st.warning(error) for error in errors]
+            if not messages_to_eval: st.warning("No valid messages found to evaluate.")
+            
+            if messages_to_eval:
+                # The UI's only job is to call the API. No local logic.
+                with st.spinner(f"Classifying {len(messages_to_eval)} messages using the live backend..."):
+                    list_of_results = bulk_classify(messages_to_eval)
 
                 if list_of_results:
-                    # Check if the backend returned an error (e.g., if it's not ready)
                     if any("error" in r for r in list_of_results):
                         st.error(f"Backend returned an error: {list_of_results[0].get('error', 'Unknown error')}")
                     else:
+                        config = get_config()
                         st.session_state.evaluation_results = {
+                            "active_id": get_models().get("active_model_id"),
+                            "config": config, # Store the config at the time of evaluation
                             "true_labels": true_labels,
                             "final_results_detailed": list_of_results,
                             "messages": messages_to_eval,
@@ -518,107 +597,193 @@ if user_input_text_stream:
                         }
                         st.rerun()
                 else:
-                    st.error("Failed to get results from the backend. The server might be down or busy.")
+                    st.error("Failed to get results from the backend.")
+            
+            st.session_state.eval_input_stream = None # Clear the input after processing
 
-# --- RESULTS DISPLAY BLOCK ---
-if st.session_state.evaluation_results:
-    eval_data = st.session_state.evaluation_results
-    config = get_config()
-    st.subheader(f"Evaluation Results for `{config.get('mode', 'N/A').upper()}` Mode")
-    
-    true_labels = eval_data["true_labels"]
-    final_results_detailed = eval_data["final_results_detailed"]
-    pred_labels = [p['prediction'] for p in final_results_detailed]
-
-    # --- Performance Summary ---
-    st.subheader("Performance Summary")
-    summary_col1, summary_col2 = st.columns(2)
-    with summary_col1:
-        accuracy = accuracy_score(true_labels, pred_labels)
-        st.metric("Overall Accuracy", f"{accuracy:.2%}")
+    if st.session_state.evaluation_results:
+        eval_data = st.session_state.evaluation_results; config = get_config()
         
-        st.text("Classification Report:")
-        report_df = pd.DataFrame(classification_report(true_labels, pred_labels, labels=["ham", "spam"], output_dict=True, zero_division=0)).transpose()
-        st.dataframe(report_df)
-
-    with summary_col2:
-        cm = confusion_matrix(true_labels, pred_labels, labels=["ham", "spam"])
-        fig, ax = plt.subplots(figsize=(2, 1))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax, xticklabels=["ham", "spam"], yticklabels=["ham", "spam"])
-        ax.set_title("Confusion Matrix")
-        ax.set_xlabel("Predicted Label"); ax.set_ylabel("True Label")
-        st.pyplot(fig)
-
-    st.markdown("---")
-    st.subheader("Performance Metrics")
-        # Calculate timing stats from the detailed results
-    total_time_ms = sum(r.get('time_ms', 0) for r in final_results_detailed)
-    avg_time_ms = total_time_ms / len(true_labels) if true_labels else 0
-    
-    perf_col1, perf_col2 = st.columns(2)
-    perf_col1.metric("Total Prediction Time", f"{total_time_ms / 1000:.4f} s")
-    perf_col2.metric("Average Time / Message", f"{avg_time_ms:.2f} ms")
-
-    # Only show hybrid stats if it was a hybrid run
-    if config.get('mode') == 'hybrid':
-        # Calculate detailed usage and accuracy stats
-        nb_results = [res for i, res in enumerate(final_results_detailed) if res['model'] == 'MultinomialNB']
-        knn_results = [res for i, res in enumerate(final_results_detailed) if res['model'] != 'MultinomialNB']
+        mode = config.get('mode', 'N/A').upper()
+        if mode == "NB_ONLY":
+            title = f"Evaluation Results for Naive Bayes Model: `{eval_data['active_id']}`"
+        elif mode == "KNN_ONLY":
+            title = f"Evaluation Results for k-NN Only Mode (Index: `{config.get('knn_dataset_file')}`)"
+        else: # Hybrid
+            title = f"Evaluation Results for Hybrid System (NB: `{eval_data['active_id']}`)"
         
-        nb_indices = [i for i, res in enumerate(final_results_detailed) if res['model'] == 'MultinomialNB']
-        knn_indices = [i for i, res in enumerate(final_results_detailed) if res['model'] != 'MultinomialNB']
-
-        nb_count = len(nb_results)
-        knn_count = len(knn_results)
-
-        nb_correct = sum(1 for i in nb_indices if final_results_detailed[i]['prediction'] == true_labels[i])
-        knn_correct = sum(1 for i in knn_indices if final_results_detailed[i]['prediction'] == true_labels[i])
+        # --- Use the correctly saved key for the model ID ---
+        st.subheader(f"Evaluation Results for Model: `{eval_data['active_id']}`")
         
-        nb_accuracy = (nb_correct / nb_count * 100) if nb_count > 0 else 0
-        knn_accuracy = (knn_correct / knn_count * 100) if knn_count > 0 else 0
+        true_labels = eval_data["true_labels"]
+        final_results_detailed = eval_data["final_results_detailed"]
+        pred_labels = [p['prediction'] for p in final_results_detailed]
 
-        st.markdown("---")
-        st.write("**Hybrid System Triage Breakdown**")
-        usage_col1, usage_col2 = st.columns(2)
-        
-        # Display the new, more detailed metrics
-        usage_col1.metric(
-            label="NB Triage Usage",
-            value=f"{nb_count / len(true_labels):.1%}",
-            help=f"Handled {nb_count} messages. Correct: {nb_correct} ({nb_accuracy:.1f}%)"
-        )
-        usage_col2.metric(
-            label="k-NN Escalation Usage",
-            value=f"{knn_count / len(true_labels):.1%}",
-            help=f"Handled {knn_count} messages. Correct: {knn_correct} ({knn_accuracy:.1f}%)"
-        )
-    
-    st.markdown("---")
+        with st.container(border=True):
+            # --- Performance Summary ---
+            st.subheader("Performance Summary")
+            summary_col1, summary_col2 = st.columns(2)
+            with summary_col1:
+                accuracy = accuracy_score(true_labels, pred_labels)
+                st.metric("Overall Accuracy", f"{accuracy:.2%}")
+                
+                st.text("Classification Report:")
+                report_df = pd.DataFrame(classification_report(true_labels, pred_labels, labels=["ham", "spam"], output_dict=True, zero_division=0)).transpose()
+                st.dataframe(report_df)
 
-    # --- Expander for Detailed Breakdown ---
-    with st.expander(f"⬇️ Click to see detailed breakdown for all {len(true_labels)} messages"):
-        df_breakdown = pd.DataFrame({
-            "True Label": true_labels,
-            "Predicted Label": [r.get('prediction', 'N/A') for r in final_results_detailed],
-            "Correct?": ["✅" if t == r.get('prediction') else "❌" for t, r in zip(true_labels, final_results_detailed)],
-            "Model Used": [r.get('model', 'N/A') for r in final_results_detailed],
-            "Confidence": [f"{r.get('confidence', 0):.2%}" for r in final_results_detailed],
-            "Time (ms)": [f"{r.get('time_ms', 0):.2f}" for r in final_results_detailed],
-            "Message": eval_data["messages"]
-        })
-        st.dataframe(df_breakdown, use_container_width=True)
-    
-    
-    # --- Action Buttons ---
-    st.subheader("Next Steps")
-    action_col1, action_col2 = st.columns(2)
-    with action_col1:
-        if st.button("➕ Add All to Training Data", use_container_width=True):
-            with st.spinner("Adding data..."):
-                response = send_bulk_feedback(eval_data["records_for_retraining"])
-                if response and response['status'] == 'success':
-                    st.success(response['message']); st.info("Remember to click 'Retrain Model'!")
+            with summary_col2:
+                cm = confusion_matrix(true_labels, pred_labels, labels=["ham", "spam"])
+                fig, ax = plt.subplots(figsize=(2, 1))
+                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax, xticklabels=["ham", "spam"], yticklabels=["ham", "spam"])
+                ax.set_title("Confusion Matrix")
+                ax.set_xlabel("Predicted Label"); ax.set_ylabel("True Label")
+                st.pyplot(fig)
+
+            st.markdown("---")
+            st.subheader("Performance Metrics")
+            config = get_config() 
+            if not config:
+                st.warning("Could not fetch configuration to display detailed metrics.")
+            else:
+                # Calculate timing stats from the detailed results
+                total_time_ms = sum(r.get('time_ms', 0) for r in final_results_detailed)
+                avg_time_ms = total_time_ms / len(true_labels) if true_labels else 0
+                
+                perf_col1, perf_col2 = st.columns(2)
+                perf_col1.metric("Total Prediction Time", f"{total_time_ms / 1000:.4f} s")
+                perf_col2.metric("Average Time / Message", f"{avg_time_ms:.2f} ms")
+
+                # Only show hybrid stats if it was a hybrid run
+                if config.get('mode') == 'hybrid':
+                    # Calculate detailed usage and accuracy stats
+                    nb_results = [res for i, res in enumerate(final_results_detailed) if res['model'] == 'MultinomialNB']
+                    knn_results = [res for i, res in enumerate(final_results_detailed) if res['model'] != 'MultinomialNB']
+                    
+                    nb_indices = [i for i, res in enumerate(final_results_detailed) if res['model'] == 'MultinomialNB']
+                    knn_indices = [i for i, res in enumerate(final_results_detailed) if res['model'] != 'MultinomialNB']
+
+                    nb_count = len(nb_results)
+                    knn_count = len(knn_results)
+
+                    nb_correct = sum(1 for i in nb_indices if final_results_detailed[i]['prediction'] == true_labels[i])
+                    knn_correct = sum(1 for i in knn_indices if final_results_detailed[i]['prediction'] == true_labels[i])
+                    
+                    nb_accuracy = (nb_correct / nb_count * 100) if nb_count > 0 else 0
+                    knn_accuracy = (knn_correct / knn_count * 100) if knn_count > 0 else 0
+
+                    st.markdown("---")
+                    st.write("**Hybrid System Triage Breakdown**")
+                    usage_col1, usage_col2 = st.columns(2)
+                    
+                    # Display the new, more detailed metrics
+                    usage_col1.metric(
+                        label="NB Triage Usage",
+                        value=f"{nb_count / len(true_labels):.1%}",
+                        help=f"Handled {nb_count} messages. Correct: {nb_correct} ({nb_accuracy:.1f}%)"
+                    )
+                    usage_col2.metric(
+                        label="k-NN Escalation Usage",
+                        value=f"{knn_count / len(true_labels):.1%}",
+                        help=f"Handled {knn_count} messages. Correct: {knn_correct} ({knn_accuracy:.1f}%)"
+                    )
+            
+            st.markdown("---")
+
+            # --- Expander for Detailed Breakdown ---
+            with st.expander(f"⬇️ Click to see detailed breakdown for all {len(true_labels)} messages"):
+                df_breakdown = pd.DataFrame({
+                    "True Label": true_labels,
+                    "Predicted Label": [r.get('prediction', 'N/A') for r in final_results_detailed],
+                    "Correct?": ["✅" if t == r.get('prediction') else "❌" for t, r in zip(true_labels, final_results_detailed)],
+                    "Model Used": [r.get('model', 'N/A') for r in final_results_detailed],
+                    "Confidence": [f"{r.get('confidence', 0):.2%}" for r in final_results_detailed],
+                    "Time (ms)": [f"{r.get('time_ms', 0):.2f}" for r in final_results_detailed],
+                    "Message": eval_data["messages"]
+                })
+                st.dataframe(df_breakdown, use_container_width=True)
+            
+            
+            # --- Action Buttons ---
+            st.subheader("Next Steps")
+            action_col1, action_col2 = st.columns(2)
+            with action_col1:
+                if st.button("➕ Add All to Training Data", use_container_width=True):
+                    with st.spinner("Adding data..."):
+                        response = send_bulk_feedback(eval_data["records_for_retraining"])
+                        if response and response['status'] == 'success':
+                            st.success(response['message']); st.info("Remember to click 'Retrain Model'!")
+                            st.session_state.evaluation_results = None; st.rerun()
+            with action_col2:
+                if st.button("🗑️ Dismiss Results", use_container_width=True):
                     st.session_state.evaluation_results = None; st.rerun()
-    with action_col2:
-        if st.button("🗑️ Dismiss Results", use_container_width=True):
-            st.session_state.evaluation_results = None; st.rerun()
+
+            st.markdown("---")
+            st.subheader("Log this Result")
+            log_note = st.text_input("Add a note to this evaluation run (e.g., 'Tested after adding tricky ham'):")
+            
+            if st.button("💾 Save Result to Log", use_container_width=True, type="primary"):
+                # Create the log entry object
+                log_entry = {
+                    "model_id": eval_data["model_id"],
+                    "mode": config.get('mode'),
+                    "knn_dataset": config.get('knn_dataset_file'),
+                    "test_set_name": "Custom Upload/Paste", # Or get from filename if uploaded
+                    "accuracy": accuracy_score(true_labels, pred_labels),
+                    "report": classification_report(true_labels, pred_labels, labels=["ham", "spam"], output_dict=True, zero_division=0),
+                    "confusion_matrix": confusion_matrix(true_labels, pred_labels, labels=["ham", "spam"]).tolist(), # Convert to list for JSON
+                    "note": log_note
+                }
+                with st.spinner("Saving to log..."):
+                    response = log_evaluation(log_entry)
+                if response and response['status'] == 'success':
+                    st.success(response['message'])
+                    # Clear the temporary result to hide this section and show the updated log
+                    st.session_state.evaluation_results = None
+                    st.rerun()
+                else:
+                    st.error("Failed to save log.")
+
+    # --- Evaluation History Display ---
+    st.markdown("---")
+    st.subheader("📊 Evaluation History")
+    st.write("Review and compare previous evaluation runs. Expand any entry to see full details.")
+
+    # Fetch all saved logs from the backend
+    eval_logs = get_eval_logs()
+
+    if not eval_logs:
+        st.info("No evaluation results have been logged yet. Run an evaluation above and click 'Save Result to Log'.")
+    else:
+        # Iterate through the logs and display each one in an expander
+        for i, log in enumerate(eval_logs):
+            # Create a nicely formatted title for the expander
+            expander_title = (
+                f"**{datetime.fromisoformat(log['timestamp']).strftime('%Y-%m-%d %H:%M:%S')}** | "
+                f"**Acc: {log['accuracy']:.2%}** | "
+                f"**Model:** `{log['model_id']}` | "
+                f"**Note:** {log.get('note', 'N/A')}"
+            )
+            
+            with st.expander(expander_title):
+                st.write(f"**Mode:** `{log.get('mode', 'N/A').upper()}` | **k-NN Data:** `{log.get('knn_dataset', 'N/A')}` | **Test Set:** `{log.get('test_set_name', 'Custom')}`")
+                
+                log_col1, log_col2 = st.columns(2)
+                with log_col1:
+                    st.text("Classification Report:")
+                    # Use .get to safely access the report key
+                    report_data = log.get('report', {})
+                    st.dataframe(pd.DataFrame(report_data).transpose())
+                with log_col2:
+                    st.text("Confusion Matrix:")
+                    # Use .get to safely access the confusion_matrix key
+                    cm_data = log.get('confusion_matrix', [[0,0],[0,0]])
+                    cm = np.array(cm_data)
+                    fig, ax = plt.subplots(figsize=(4, 3))
+                    sns.heatmap(cm, annot=True, fmt='d', cmap='Reds', ax=ax, xticklabels=["ham", "spam"], yticklabels=["ham", "spam"])
+                    st.pyplot(fig)
+                
+                # Add a delete button for each specific log entry
+                if st.button("🗑️ Delete this Log Entry", key=f"delete_log_{log['timestamp']}", type="secondary"):
+                    with st.spinner("Deleting log..."):
+                        delete_eval_log(log['timestamp'])
+                    st.rerun()
