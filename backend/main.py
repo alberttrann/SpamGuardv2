@@ -153,6 +153,36 @@ class ModelNotesRequest(BaseModel):
 
 class DatasetNotesRequest(BaseModel):
     notes: Dict[str, str] # e.g., {"data.csv": "note 1"}
+class DetailedResultItem(BaseModel):
+    True_Label: str
+    Predicted_Label: str
+    Correct: str
+    Model_Used: str
+    Confidence: str
+    Time_ms: str
+    Message: str
+
+class PerformanceMetrics(BaseModel):
+    total_prediction_time_s: float
+    avg_time_per_message_ms: float
+    nb_triage_usage_percent: float = None # Optional
+    nb_triage_details: str = None # Optional
+    knn_escalation_usage_percent: float = None # Optional
+    knn_escalation_details: str = None # Optional
+
+class EvaluationLogEntry(BaseModel):
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    model_id: str
+    mode: str
+    knn_dataset: str
+    test_set_name: str
+    note: str = ""
+    # Rich payload
+    accuracy: float
+    report: Dict
+    confusion_matrix: List[List[int]]
+    performance_metrics: PerformanceMetrics
+    detailed_results: List[Dict] # This will be the full breakdown table
 
 # --- API Endpoints ---
 @app.get("/status")
@@ -176,20 +206,21 @@ def bulk_classify_messages(req: BulkMessageRequest):
     if not manager.prod_classifier.is_loaded:
         # Return a list of errors if the classifier isn't ready
         error_result = {"error": "Classifier is not ready yet."}
-        return [error_result] * len(req.messages)
+        return {"results": [error_result] * len(req.messages), "total_time_s": 0}
         
     results = []
+    total_start_time = time.perf_counter()
     for message in req.messages:
         start_time = time.perf_counter()
-        # The classify method itself is synchronous within the classifier
         result = manager.prod_classifier.classify(message)
         end_time = time.perf_counter()
         
         # Add the calculated time to the result dictionary
         result['time_ms'] = (end_time - start_time) * 1000
         results.append(result)
+    total_end_time = time.perf_counter()
         
-    return results
+    return {"results": results, "total_time_s": total_end_time - total_start_time}
 
 @app.post("/feedback")
 def receive_feedback(feedback: Feedback):

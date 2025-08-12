@@ -556,6 +556,7 @@ else:
 # --- SECTION 5: BATCH EVALUATION & TESTING  ---
     st.header("5. Batch Evaluation & Testing")
     st.write("Evaluate the performance of the currently active model and operational configuration.")
+    
     eval_tab1, eval_tab2 = st.tabs(["📤 Upload File", "📝 Paste Text"])
     with eval_tab1:
         uploaded_file = st.file_uploader("Upload a .txt or .csv file", type=["txt", "csv"], key="eval_uploader")
@@ -566,20 +567,27 @@ else:
 
     if st.session_state.get('eval_input_stream'):
         if st.button("Run Batch Evaluation", use_container_width=True, type="primary", key="run_batch_eval_button"):
-            st.session_state.evaluation_results = None
+            st.session_state.evaluation_results = None # Clear old results
+            
             eval_stream = st.session_state.eval_input_stream
             if not isinstance(eval_stream, io.StringIO):
                 eval_stream = io.StringIO(eval_stream.getvalue().decode("utf-8"))
             eval_stream.seek(0)
+            
             true_labels, messages_to_eval, records, errors = parse_labeled_data_from_stream(eval_stream)
             
             if errors: [st.warning(error) for error in errors]
             if not messages_to_eval: st.warning("No valid messages found to evaluate.")
             
             if messages_to_eval:
+                # The backend now handles all logic, including caching and timing.
                 with st.spinner(f"Classifying {len(messages_to_eval)} messages using the live backend..."):
-                    list_of_results = bulk_classify(messages_to_eval)
-                if list_of_results:
+                    response_data = bulk_classify(messages_to_eval)
+
+                if response_data and "results" in response_data:
+                    list_of_results = response_data["results"]
+                    total_time = response_data.get("total_time_s", 0)
+
                     if any("error" in r for r in list_of_results):
                         st.error(f"Backend returned an error: {list_of_results[0].get('error', 'Unknown error')}")
                     else:
@@ -588,68 +596,114 @@ else:
                             "active_id": get_models().get("active_model_id"),
                             "true_labels": true_labels,
                             "final_results_detailed": list_of_results,
+                            "total_time_s": total_time, # Store the total time
                             "messages": messages_to_eval,
                             "records_for_retraining": records,
                         }
-                else: st.error("Failed to get results from the backend.")
-            st.session_state.eval_input_stream = None
+                else:
+                    st.error("Failed to get results from the backend.")
+            
+            st.session_state.eval_input_stream = None # Clear input to prevent re-running
             st.rerun()
 
     if st.session_state.evaluation_results:
         eval_data = st.session_state.evaluation_results
         config = eval_data["config_at_eval_time"]
+        true_labels = eval_data["true_labels"]
+        final_results_detailed = eval_data["final_results_detailed"]
+        pred_labels = [p['prediction'] for p in final_results_detailed]
+
+        # --- Build all data structures at the top level ---
+        
+        # 1. Build Performance Metrics Dictionary
+        total_time_s = eval_data.get('total_time_s', 0)
+        avg_time_ms = (total_time_s * 1000) / len(true_labels) if true_labels else 0
+        perf_metrics = {
+            "total_prediction_time_s": total_time_s,
+            "avg_time_per_message_ms": avg_time_ms
+        }
+        if config.get('mode') == 'hybrid':
+            nb_count = sum(1 for r in final_results_detailed if 'MultinomialNB' in r['model'])
+            knn_count = len(true_labels) - nb_count
+            nb_correct = sum(1 for i, r in enumerate(final_results_detailed) if 'MultinomialNB' in r['model'] and r['prediction'] == true_labels[i])
+            knn_correct = sum(1 for i, r in enumerate(final_results_detailed) if 'Vector Search' in r['model'] and r['prediction'] == true_labels[i])
+            nb_accuracy = (nb_correct / nb_count * 100) if nb_count > 0 else 0
+            knn_accuracy = (knn_correct / knn_count * 100) if knn_count > 0 else 0
+            perf_metrics["nb_triage_usage_percent"] = (nb_count / len(true_labels)) if true_labels else 0
+            perf_metrics["nb_triage_details"] = f"Handled {nb_count} messages. Correct: {nb_correct} ({nb_accuracy:.1f}%)"
+            perf_metrics["knn_escalation_usage_percent"] = (knn_count / len(true_labels)) if true_labels else 0
+            perf_metrics["knn_escalation_details"] = f"Handled {knn_count} messages. Correct: {knn_correct} ({knn_accuracy:.1f}%)"
+
+        # 2. Build Detailed Breakdown DataFrame
+        df_breakdown = pd.DataFrame({
+            "True_Label": true_labels,
+            "Predicted_Label": [r.get('prediction', 'N/A') for r in final_results_detailed],
+            "Correct": ["✅" if t == r.get('prediction') else "❌" for t, r in zip(true_labels, final_results_detailed)],
+            "Model_Used": [r.get('model', 'N/A') for r in final_results_detailed],
+            "Confidence": [f"{r.get('confidence', 0):.2%}" for r in final_results_detailed],
+            "Time_ms": [f"{r.get('time_ms', 0):.2f}" for r in final_results_detailed],
+            "Message": eval_data["messages"]
+        })
+
+        # --- Now, Display Everything ---
+        
         mode = config.get('mode', 'N/A').upper()
         title = f"Evaluation Results for {mode} Mode"
-        if mode == "NB_ONLY": title = f"Evaluation Results for Naive Bayes Model: `{eval_data['active_id']}`"
-        elif mode == "KNN_ONLY": title = f"Evaluation Results for k-NN Only Mode (Index: `{config.get('knn_dataset_file')}`)"
-        else: title = f"Evaluation Results for Hybrid System (NB: `{eval_data['active_id']}`)"
+        if mode == "NB_ONLY": title = f"Results for Naive Bayes Model: `{eval_data['active_id']}`"
+        elif mode == "KNN_ONLY": title = f"Results for k-NN Only Mode (Index: `{config.get('knn_dataset_file')}`)"
+        else: title = f"Results for Hybrid System (NB: `{eval_data['active_id']}`)"
         st.subheader(title)
-        
-        true_labels = eval_data["true_labels"]; final_results_detailed = eval_data["final_results_detailed"]; pred_labels = [p['prediction'] for p in final_results_detailed]
+
         with st.container(border=True):
-            st.subheader("Performance Summary"); summary_col1, summary_col2 = st.columns(2)
+            st.subheader("Performance Summary")
+            summary_col1, summary_col2 = st.columns(2)
             with summary_col1:
-                accuracy = accuracy_score(true_labels, pred_labels); st.metric("Overall Accuracy", f"{accuracy:.2%}")
-                st.text("Classification Report:"); report_df = pd.DataFrame(classification_report(true_labels, pred_labels, labels=["ham", "spam"], output_dict=True, zero_division=0)).transpose(); st.dataframe(report_df)
+                accuracy = accuracy_score(true_labels, pred_labels)
+                st.metric("Overall Accuracy", f"{accuracy:.2%}")
+                st.text("Classification Report:")
+                report_df = pd.DataFrame(classification_report(true_labels, pred_labels, labels=["ham", "spam"], output_dict=True, zero_division=0)).transpose()
+                st.dataframe(report_df)
             with summary_col2:
-                cm = confusion_matrix(true_labels, pred_labels, labels=["ham", "spam"]); fig, ax = plt.subplots(figsize=(4, 3)); sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax, xticklabels=["ham", "spam"], yticklabels=["ham", "spam"]); ax.set_title("Confusion Matrix"); ax.set_xlabel("Predicted Label"); ax.set_ylabel("True Label"); st.pyplot(fig)
+                cm = confusion_matrix(true_labels, pred_labels, labels=["ham", "spam"])
+                fig, ax = plt.subplots(figsize=(4, 3)); sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax, xticklabels=["ham", "spam"], yticklabels=["ham", "spam"])
+                ax.set_title("Confusion Matrix"); ax.set_xlabel("Predicted Label"); ax.set_ylabel("True Label"); st.pyplot(fig)
+            
             st.markdown("---"); st.subheader("Performance Metrics")
-            total_time_ms = sum(r.get('time_ms', 0) for r in final_results_detailed)
-            avg_time_ms = total_time_ms / len(true_labels) if true_labels else 0
             perf_col1, perf_col2 = st.columns(2)
-            perf_col1.metric("Total Prediction Time", f"{total_time_ms / 1000:.4f} s"); perf_col2.metric("Average Time / Message", f"{avg_time_ms:.2f} ms")
+            perf_col1.metric("Total Prediction Time", f"{perf_metrics['total_prediction_time_s']:.4f} s")
+            perf_col2.metric("Average Time / Message", f"{perf_metrics['avg_time_per_message_ms']:.2f} ms")
             if config.get('mode') == 'hybrid':
-                nb_count = sum(1 for r in final_results_detailed if r['model'] == 'MultinomialNB'); knn_count = len(true_labels) - nb_count
-                nb_correct = sum(1 for i, r in enumerate(final_results_detailed) if r['model'] == 'MultinomialNB' and r['prediction'] == true_labels[i])
-                knn_correct = sum(1 for i, r in enumerate(final_results_detailed) if r['model'] != 'MultinomialNB' and r['prediction'] == true_labels[i])
-                nb_accuracy = (nb_correct / nb_count * 100) if nb_count > 0 else 0; knn_accuracy = (knn_correct / knn_count * 100) if knn_count > 0 else 0
-                st.markdown("---"); st.write("**Hybrid System Triage Breakdown**")
                 usage_col1, usage_col2 = st.columns(2)
-                usage_col1.metric(label="NB Triage Usage", value=f"{nb_count / len(true_labels):.1%}", help=f"Handled {nb_count} messages. Correct: {nb_correct} ({nb_accuracy:.1f}%)")
-                usage_col2.metric(label="k-NN Escalation Usage", value=f"{knn_count / len(true_labels):.1%}", help=f"Handled {knn_count} messages. Correct: {knn_correct} ({knn_accuracy:.1f}%)")
+                usage_col1.metric(label="NB Triage Usage", value=f"{perf_metrics['nb_triage_usage_percent']:.1%}", help=perf_metrics['nb_triage_details'])
+                usage_col2.metric(label="k-NN Escalation Usage", value=f"{perf_metrics['knn_escalation_usage_percent']:.1%}", help=perf_metrics['knn_escalation_details'])
+            
             with st.expander(f"⬇️ Click to see detailed breakdown for all {len(true_labels)} messages"):
-                df_breakdown = pd.DataFrame({"True Label": true_labels, "Predicted Label": [r.get('prediction', 'N/A') for r in final_results_detailed], "Correct?": ["✅" if t == r.get('prediction') else "❌" for t, r in zip(true_labels, final_results_detailed)], "Model Used": [r.get('model', 'N/A') for r in final_results_detailed], "Confidence": [f"{r.get('confidence', 0):.2%}" for r in final_results_detailed], "Time (ms)": [f"{r.get('time_ms', 0):.2f}" for r in final_results_detailed], "Message": eval_data["messages"]})
-                st.dataframe(df_breakdown, use_container_width=True)
-            st.subheader("Next Steps")
-            action_col1, action_col2, action_col3 = st.columns(3)
-            with action_col1:
-                if st.button("➕ Add All to Training Data", use_container_width=True):
-                    with st.spinner("Adding data..."):
-                        response = send_bulk_feedback(eval_data["records_for_retraining"])
-                        if response and response['status'] == 'success': st.success(response['message']); st.info("Remember to click 'Retrain Model'!"); st.session_state.evaluation_results = None; st.rerun()
-            with action_col2:
-                log_note = st.text_input("Add a note before logging this result:")
-                if st.button("💾 Save Result to Log", use_container_width=True):
-                    log_entry = { "model_id": eval_data["active_id"], "mode": config.get('mode'), "knn_dataset": config.get('knn_dataset_file'), "test_set_name": "Custom Upload", "accuracy": accuracy_score(true_labels, pred_labels), "report": classification_report(true_labels, pred_labels, labels=["ham", "spam"], output_dict=True, zero_division=0), "confusion_matrix": confusion_matrix(true_labels, pred_labels, labels=["ham", "spam"]).tolist(), "note": log_note }
-                    with st.spinner("Saving to log..."): response = log_evaluation(log_entry)
-                    if response and response['status'] == 'success': st.success(response['message']); st.session_state.evaluation_results = None; st.rerun()
-                    else: st.error("Failed to save log.")
-            with action_col3:
-                if st.button("🗑️ Dismiss Results", use_container_width=True, type="secondary"):
-                    st.session_state.evaluation_results = None; st.rerun()
-    st.markdown("---"); st.subheader("📊 Evaluation History")
+                st.dataframe(df_breakdown, use_container_width=True) # Use the df created above
+                
+            st.subheader("Log this Result")
+            log_note = st.text_input("Add a note to this evaluation run:", key="log_note_input")
+            if st.button("💾 Save Result to Log", use_container_width=True, type="primary"):
+                log_entry = {
+                    "model_id": eval_data["active_id"], "mode": config.get('mode'),
+                    "knn_dataset": config.get('knn_dataset_file'), "test_set_name": "Custom Upload",
+                    "note": log_note, "accuracy": accuracy_score(true_labels, pred_labels),
+                    "report": classification_report(true_labels, pred_labels, labels=["ham", "spam"], output_dict=True, zero_division=0),
+                    "confusion_matrix": confusion_matrix(true_labels, pred_labels, labels=["ham", "spam"]).tolist(),
+                    "performance_metrics": perf_metrics, # Use the perf_metrics dict created above
+                    "detailed_results": df_breakdown.to_dict('records')
+                }
+                with st.spinner("Saving to log..."): response = log_evaluation(log_entry)
+                if response and response['status'] == 'success':
+                    st.success(response['message']); st.session_state.evaluation_results = None; st.rerun()
+                else: st.error("Failed to save log.")
+
+    # --- Evaluation History Display ---
+    st.markdown("---")
+    st.subheader("📊 Evaluation History")
+    st.write("Review and compare previous evaluation runs. Expand any entry to see full details.")
     eval_logs = get_eval_logs()
-    if not eval_logs: st.info("No evaluation results have been logged yet.")
+    if not eval_logs:
+        st.info("No evaluation results have been logged yet. Run an evaluation above and click 'Save Result to Log'.")
     else:
         for i, log in enumerate(eval_logs):
             expander_title = (f"**{datetime.fromisoformat(log['timestamp']).strftime('%Y-%m-%d %H:%M')}** | **Acc: {log['accuracy']:.2%}** | **Model:** `{log['model_id']}` | **Note:** {log.get('note', 'N/A')}")
@@ -660,5 +714,22 @@ else:
                     st.text("Classification Report:"); st.dataframe(pd.DataFrame(log.get('report', {})).transpose())
                 with log_col2:
                     st.text("Confusion Matrix:"); cm = np.array(log.get('confusion_matrix', [[0,0],[0,0]])); fig, ax = plt.subplots(figsize=(4, 3)); sns.heatmap(cm, annot=True, fmt='d', cmap='Reds', ax=ax, xticklabels=["ham", "spam"], yticklabels=["ham", "spam"]); st.pyplot(fig)
+                
+                perf_metrics = log.get("performance_metrics", {})
+                if perf_metrics:
+                    st.markdown("---"); st.subheader("Performance Metrics")
+                    perf_col1a, perf_col2a = st.columns(2)
+                    perf_col1a.metric("Total Prediction Time", f"{perf_metrics.get('total_prediction_time_s', 0):.4f} s")
+                    perf_col2a.metric("Average Time / Message", f"{perf_metrics.get('avg_time_per_message_ms', 0):.2f} ms")
+                    if log.get('mode') == 'hybrid':
+                        usage_col1a, usage_col2a = st.columns(2)
+                        usage_col1a.metric("NB Triage Usage", f"{perf_metrics.get('nb_triage_usage_percent', 0):.1%}", help=perf_metrics.get('nb_triage_details', ''))
+                        usage_col2a.metric("k-NN Escalation Usage", f"{perf_metrics.get('knn_escalation_usage_percent', 0):.1%}", help=perf_metrics.get('knn_escalation_details', ''))
+
+                logged_breakdown = log.get("detailed_results", [])
+                if logged_breakdown:
+                    st.markdown("---"); st.subheader("Logged Detailed Breakdown")
+                    st.dataframe(pd.DataFrame(logged_breakdown), use_container_width=True)
+                
                 if st.button("🗑️ Delete this Log Entry", key=f"delete_log_{log['timestamp']}", type="secondary"):
                     with st.spinner("Deleting log..."): delete_eval_log(log['timestamp']); st.rerun()
