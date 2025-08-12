@@ -1,0 +1,94 @@
+[
+    {
+        "timestamp": "2025-08-12T11:50:33.487067",
+        "model_id": "nb_multinomial_20250809_065804",
+        "mode": "hybrid",
+        "knn_dataset": "2cls_spam_text_cls.csv",
+        "test_set_name": "Custom Upload",
+        "accuracy": 0.9456521739130435,
+        "report": {
+            "ham": {
+                "precision": 0.9767441860465116,
+                "recall": 0.9130434782608695,
+                "f1-score": 0.9438202247191011,
+                "support": 46.0
+            },
+            "spam": {
+                "precision": 0.9183673469387755,
+                "recall": 0.9782608695652174,
+                "f1-score": 0.9473684210526315,
+                "support": 46.0
+            },
+            "accuracy": 0.9456521739130435,
+            "macro avg": {
+                "precision": 0.9475557664926435,
+                "recall": 0.9456521739130435,
+                "f1-score": 0.9455943228858663,
+                "support": 92.0
+            },
+            "weighted avg": {
+                "precision": 0.9475557664926436,
+                "recall": 0.9456521739130435,
+                "f1-score": 0.9455943228858663,
+                "support": 92.0
+            }
+        },
+        "confusion_matrix": [
+            [
+                42,
+                4
+            ],
+            [
+                1,
+                45
+            ]
+        ],
+        "note": "Hybrid system trained on newest 2cls, on the simple 92-msg set"
+    },
+    {
+        "timestamp": "2025-08-12T11:45:13.224228",
+        "model_id": "nb_multinomial_20250809_065804",
+        "mode": "knn_only",
+        "knn_dataset": "2cls_spam_text_cls_original.csv",
+        "test_set_name": "Custom Upload",
+        "accuracy": 0.8913043478260869,
+        "report": {
+            "ham": {
+                "precision": 0.8333333333333334,
+                "recall": 0.9782608695652174,
+                "f1-score": 0.9,
+                "support": 46.0
+            },
+            "spam": {
+                "precision": 0.9736842105263158,
+                "recall": 0.8043478260869565,
+                "f1-score": 0.8809523809523809,
+                "support": 46.0
+            },
+            "accuracy": 0.8913043478260869,
+            "macro avg": {
+                "precision": 0.9035087719298246,
+                "recall": 0.8913043478260869,
+                "f1-score": 0.8904761904761904,
+                "support": 92.0
+            },
+            "weighted avg": {
+                "precision": 0.9035087719298246,
+                "recall": 0.8913043478260869,
+                "f1-score": 0.8904761904761905,
+                "support": 92.0
+            }
+        },
+        "confusion_matrix": [
+            [
+                45,
+                1
+            ],
+            [
+                9,
+                37
+            ]
+        ],
+        "note": "k-NN only on original biased dataset"
+    }
+]

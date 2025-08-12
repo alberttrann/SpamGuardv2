@@ -62,20 +62,6 @@ def load_prod_classifier():
         manager.model_status_message = "System is ready."
     print("BACKGROUND: Production model is now loaded and ready.")
 
-def _read_eval_logs():
-    os.makedirs(LOGS_DIR, exist_ok=True)
-    if not os.path.exists(EVAL_LOG_PATH):
-        return []
-    try:
-        with open(EVAL_LOG_PATH, 'r') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return []
-
-def _write_eval_logs(logs):
-    with open(EVAL_LOG_PATH, 'w') as f:
-        json.dump(logs, f, indent=4)
-
 def run_retraining_sequence():
     """This function handles the entire long-running retraining process."""
     with manager._lock:
@@ -317,8 +303,25 @@ def delete_all_pending_feedback():
     deleted_count = database.delete_all_feedback()
     return {"status": "success", "message": f"Discarded all {deleted_count} records from the staging area."}
 
+def _read_eval_logs():
+    """Helper function to read the evaluation log file."""
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    if not os.path.exists(EVAL_LOG_PATH):
+        return []
+    try:
+        with open(EVAL_LOG_PATH, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return []
+
+def _write_eval_logs(logs):
+    """Helper function to write to the evaluation log file."""
+    with open(EVAL_LOG_PATH, 'w') as f:
+        json.dump(logs, f, indent=4)
+
 @app.post("/evaluations/log")
 def log_evaluation_result(entry: EvaluationLogEntry):
+    """Saves a new evaluation result to the persistent log."""
     logs = _read_eval_logs()
     logs.insert(0, entry.dict()) # Add new log to the top of the list
     _write_eval_logs(logs)
@@ -326,10 +329,12 @@ def log_evaluation_result(entry: EvaluationLogEntry):
 
 @app.get("/evaluations/logs")
 def get_evaluation_logs():
+    """Returns all saved evaluation logs."""
     return _read_eval_logs()
 
 @app.delete("/evaluations/log/{timestamp}")
 def delete_evaluation_log(timestamp: str):
+    """Deletes a specific log entry by its timestamp."""
     logs = _read_eval_logs()
     logs_to_keep = [log for log in logs if log.get("timestamp") != timestamp]
     if len(logs_to_keep) < len(logs):
