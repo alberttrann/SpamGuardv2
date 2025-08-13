@@ -173,6 +173,14 @@ def get_model_explanation():
 def get_models():
     try: response = requests.get(f"{API_BASE_URL}/models"); response.raise_for_status(); return response.json()
     except requests.exceptions.RequestException as e: st.error(f"API Error: {e}"); return None
+def update_model_notes(notes_dict):
+    try:
+        response = requests.post(f"{API_BASE_URL}/models/notes", json={"notes": notes_dict})
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"API Error: {e}")
+        return None
 def set_active_model(model_id):
     try: response = requests.post(f"{API_BASE_URL}/models/activate", json={"model_id": model_id}); response.raise_for_status(); return response.json()
     except requests.exceptions.RequestException as e: st.error(f"API Error: {e}"); return None
@@ -222,6 +230,14 @@ def get_datasets():
     except requests.exceptions.RequestException as e:
         st.error(f"API Error: Could not fetch datasets. {e}")
         return {}
+def update_dataset_notes(notes_dict):
+    try:
+        response = requests.post(f"{API_BASE_URL}/datasets/notes", json={"notes": notes_dict})
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"API Error: {e}")
+        return None
 
 # --- Main Application Logic ---
 st.title("🛡️ SpamGuard AI: An Adaptive Spam Filtering System")
