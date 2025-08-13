@@ -20,14 +20,12 @@ import seaborn as sns
 import csv
 import io
 
-# --- Definitive PYTHONPATH Fix ---
 DASHBOARD_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(DASHBOARD_DIR, '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 from backend.utils import preprocess_tokenizer
 
-# --- Absolute Paths ---
 MODELS_DIR = os.path.join(PROJECT_ROOT, 'models')
 DATA_DIR = os.path.join(PROJECT_ROOT, 'backend', 'data')
 
@@ -292,7 +290,7 @@ else:
 
     st.divider()
 
-    # --- SECTION 2: MODEL MANAGEMENT & REGISTRY (FINAL OVERHAUL) ---
+    # --- SECTION 2: MODEL MANAGEMENT & REGISTRY  ---
     st.header("2. Model Management & Registry")
     st.write("View and manage trained model versions and classifier operational settings.")
 
@@ -578,7 +576,7 @@ else:
     
     st.divider()
 
-# --- SECTION 5: BATCH EVALUATION & TESTING (FINAL, FULLY-FEATURED VERSION) ---
+# --- SECTION 5: BATCH EVALUATION & TESTING  ---
     st.header("5. Batch Evaluation & Testing")
     st.write("Evaluate the performance of the currently active model and operational configuration on a custom test set.")
 
@@ -728,7 +726,7 @@ else:
     else:
         logs_df = pd.DataFrame(eval_logs)
         
-        # --- THIS IS THE FIX: Add a fourth column for the new filter ---
+        # --- Four filters ---
         st.write("**Filter Controls:**")
         filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
         
@@ -779,7 +777,6 @@ else:
                 expander_title = " | ".join(title_parts)
                 
                 with st.expander(expander_title):
-                    # ... (The rest of the display logic inside the expander is correct)
                     st.write(f"**Test Set:** `{log.get('test_set_name', 'N/A')}` | **Note:** *{log.get('note', 'No note.')}*")
                     log_col1, log_col2 = st.columns(2)
                     with log_col1:
@@ -804,3 +801,99 @@ else:
                     
                     if st.button("🗑️ Delete this Log Entry", key=f"delete_log_{log['timestamp']}", type="secondary"):
                         with st.spinner("Deleting log..."): delete_eval_log(log['timestamp']); st.rerun()
+
+# --- NEW: SECTION 6: PERFORMANCE ANALYTICS ---
+    st.header("6. Performance Analytics")
+    st.write("Visualize and compare the performance of all historical evaluation runs.")
+
+    # Load the log data once at the top of the section
+    eval_logs = get_eval_logs()
+
+    if not eval_logs:
+        st.info("No evaluation results have been logged yet. Run an evaluation in Section 6 to see analytics.")
+    else:
+        # --- Data Preparation ---
+        # Convert the log data into a clean Pandas DataFrame for easy manipulation
+        logs_df = pd.DataFrame(eval_logs)
+        
+        # Extract nested data into top-level columns for easier plotting and filtering
+        logs_df['timestamp'] = pd.to_datetime(logs_df['timestamp'])
+        logs_df['ham_recall'] = logs_df['report'].apply(lambda r: r.get('ham', {}).get('recall', 0))
+        logs_df['spam_recall'] = logs_df['report'].apply(lambda r: r.get('spam', {}).get('recall', 0))
+        logs_df['spam_precision'] = logs_df['report'].apply(lambda r: r.get('spam', {}).get('precision', 0))
+        logs_df['avg_time_ms'] = logs_df['performance_metrics'].apply(lambda p: p.get('avg_time_per_message_ms', 0))
+
+        # --- UI Tabs for Different Views ---
+        tab_trends, tab_compare = st.tabs(["📈 Performance Trends (Time-Series)", "📊 Direct Comparison (Bar Chart)"])
+
+        with tab_trends:
+            st.subheader("Visualize a Metric Over Time")
+            
+            # Allow user to select which metric to plot
+            metric_to_plot = st.selectbox(
+                "Select a metric to visualize:",
+                options=["accuracy", "ham_recall", "spam_recall", "spam_precision", "avg_time_ms"],
+                format_func=lambda x: {
+                    "accuracy": "Overall Accuracy", "ham_recall": "Ham Recall (Safety)",
+                    "spam_recall": "Spam Recall (Effectiveness)", "spam_precision": "Spam Precision",
+                    "avg_time_ms": "Average Time / Message (ms)"
+                }.get(x, x),
+                key="timeseries_metric_selector"
+            )
+
+            # Allow user to filter the data shown in the time-series
+            st.write("**Filter data for the trend chart:**")
+            trend_filter_col1, trend_filter_col2, trend_filter_col3 = st.columns(3)
+            with trend_filter_col1:
+                modes = ["All"] + sorted(logs_df['mode'].unique().tolist())
+                selected_mode = st.selectbox("Filter by Mode:", modes, key="trend_mode_filter")
+            with trend_filter_col2:
+                test_sets = ["All"] + sorted(logs_df['test_set_name'].unique().tolist())
+                selected_test_set = st.selectbox("Filter by Test Set:", test_sets, key="trend_test_set_filter")
+            
+            # Apply filters
+            trend_df = logs_df.copy()
+            if selected_mode != "All": trend_df = trend_df[trend_df['mode'] == selected_mode]
+            if selected_test_set != "All": trend_df = trend_df[trend_df['test_set_name'] == selected_test_set]
+            
+            # Sort by timestamp to ensure the line chart is correct
+            trend_df = trend_df.sort_values(by="timestamp")
+
+            if trend_df.empty:
+                st.warning("No data matches the current filter criteria for the trend chart.")
+            else:
+                # Create the plot
+                st.line_chart(trend_df, x='timestamp', y=metric_to_plot)
+
+        with tab_compare:
+            st.subheader("Directly Compare Specific Evaluation Runs")
+            
+            # Use st.multiselect to allow the user to pick which runs to compare
+            # We'll create a unique identifier for each run for the multiselect
+            logs_df['run_id'] = logs_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M') + " | " + logs_df['mode'] + " on " + logs_df['test_set_name']
+            
+            selected_runs = st.multiselect(
+                "Select two or more evaluation runs to compare:",
+                options=logs_df['run_id'].tolist(),
+                key="comparison_selector"
+            )
+            
+            if len(selected_runs) > 1:
+                comparison_df = logs_df[logs_df['run_id'].isin(selected_runs)]
+                
+                # Allow user to select the metric for the bar chart
+                metric_to_compare = st.selectbox(
+                    "Select a metric to compare:",
+                    options=["accuracy", "ham_recall", "spam_recall", "spam_precision", "avg_time_ms"],
+                    format_func=lambda x: {
+                        "accuracy": "Overall Accuracy", "ham_recall": "Ham Recall (Safety)",
+                        "spam_recall": "Spam Recall (Effectiveness)", "spam_precision": "Spam Precision",
+                        "avg_time_ms": "Average Time / Message (ms)"
+                    }.get(x, x),
+                    key="comparison_metric_selector"
+                )
+                
+                # Create the bar chart
+                st.bar_chart(comparison_df, x='run_id', y=metric_to_compare)
+            else:
+                st.info("Please select at least two runs to generate a comparison chart.")

@@ -31,7 +31,7 @@
     },
     "active_model_id": "nb_multinomial_20250809_065804",
     "current_config": {
-        "mode": "hybrid",
-        "knn_dataset_file": "2cls_spam_text_cls.csv"
+        "mode": "knn_only",
+        "knn_dataset_file": "before_270.csv"
     }
 }

@@ -1,4 +1,4 @@
-# backend/classifier.py (Final, Definitive Version)
+# backend/classifier.py 
 
 import joblib
 import numpy as np
@@ -11,11 +11,9 @@ from tqdm import tqdm
 import os
 from typing import List, Dict
 
-# Use relative imports for local modules
 from .utils import preprocess_tokenizer
 from . import registry
 
-# --- Define robust absolute paths ---
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, '..'))
 MODELS_DIR = os.path.join(PROJECT_ROOT, 'models')
@@ -106,7 +104,6 @@ class SpamGuardClassifier:
                     self.all_messages = df_knn_data["Message"].astype(str).tolist()
                     self.all_labels = df_knn_data["Category"].tolist()
                     
-                    # --- THIS IS THE CORRECTED CACHING LOGIC ---
                     faiss_index_filename = f"faiss_index_{knn_dataset_file.replace('.', '_')}.bin"
                     FAISS_INDEX_CACHED_PATH = os.path.join(MODELS_DIR, faiss_index_filename)
                     

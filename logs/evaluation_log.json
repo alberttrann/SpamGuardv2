@@ -1,5 +1,1411 @@
 [
     {
+        "timestamp": "2025-08-13T16:19:45.023743",
+        "model_id": "N/A",
+        "mode": "KNN_ONLY",
+        "knn_dataset": "before_270.csv",
+        "test_set_name": "mixed_test_set.txt",
+        "note": "kNN-ONLY, using before_270 as FAISS index, on only_tricky_ham_test_set",
+        "accuracy": 0.34,
+        "report": {
+            "ham": {
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1-score": 0.0,
+                "support": 99.0
+            },
+            "spam": {
+                "precision": 0.34,
+                "recall": 1.0,
+                "f1-score": 0.5074626865671642,
+                "support": 51.0
+            },
+            "accuracy": 0.34,
+            "macro avg": {
+                "precision": 0.17,
+                "recall": 0.5,
+                "f1-score": 0.2537313432835821,
+                "support": 150.0
+            },
+            "weighted avg": {
+                "precision": 0.1156,
+                "recall": 0.34,
+                "f1-score": 0.17253731343283582,
+                "support": 150.0
+            }
+        },
+        "confusion_matrix": [
+            [
+                0,
+                99
+            ],
+            [
+                0,
+                51
+            ]
+        ],
+        "performance_metrics": {
+            "total_prediction_time_s": 32.057748900027946,
+            "avg_time_per_message_ms": 213.7183260001863,
+            "nb_triage_usage_percent": null,
+            "nb_triage_details": null,
+            "knn_escalation_usage_percent": null,
+            "knn_escalation_details": null
+        },
+        "detailed_results": [
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "2318.93",
+                "Message": "Your access to the university library database has been renewed for another year."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "357.70",
+                "Message": "Congratulations! You\u2019ve won a $1000 Walmart gift card. Click here to claim now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "80.00%",
+                "Time_ms": "241.85",
+                "Message": "Click to view your updated lab schedule for the upcoming semester."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "253.32",
+                "Message": "You are the lucky winner of an iPhone 15! No purchase necessary. Claim now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "215.28",
+                "Message": "Your monthly subscription to the academic journal will renew on the 1st."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "206.50",
+                "Message": "Please verify your identity for the upcoming grant audit with the research office."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "236.63",
+                "Message": "Earn $5000 per week from home! No experience needed. Click to join now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "245.17",
+                "Message": "A reminder: Your free trial of the statistical software ends in 48 hours."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "225.88",
+                "Message": "Your department\u2019s budget report is ready for review in the finance portal."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "250.98",
+                "Message": "Urgent: Your account will be deleted! Click to verify your email immediately!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "80.00%",
+                "Time_ms": "261.14",
+                "Message": "You\u2019ve been invited to a complimentary faculty development workshop."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "265.26",
+                "Message": "Make money fast with this one weird trick! Click here before it\u2019s gone!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "179.46",
+                "Message": "Click to access your personalized teaching evaluation summary."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "178.26",
+                "Message": "Your access to the secure research server requires re-authentication."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "218.74",
+                "Message": "Limited time offer: Buy one, get one free on all items! Shop now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "218.98",
+                "Message": "Your manuscript has been accepted for publication in the Journal of Science."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "182.47",
+                "Message": "You have 1 unread message from Facebook! Click to view it now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "240.35",
+                "Message": "The university is offering free flu shots to staff. Schedule your appointment."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "229.05",
+                "Message": "Your account password expires in 3 days. Please reset it via the portal."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "264.80",
+                "Message": "You\u2019ve been selected for a secret government survey! Earn $200 instantly!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "268.01",
+                "Message": "Click to confirm your attendance at the dissertation defense on Friday."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "278.36",
+                "Message": "Your research funding has been approved. Review the terms and disbursement schedule."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "251.54",
+                "Message": "Act now! Your exclusive discount expires in 1 hour! Don\u2019t miss out!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "80.00%",
+                "Time_ms": "200.78",
+                "Message": "Your access to the alumni career network is active. Log in to explore opportunities."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "80.00%",
+                "Time_ms": "235.68",
+                "Message": "Please complete your mandatory cybersecurity training by end of week."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "169.85",
+                "Message": "You won a cruise to the Bahamas! Just pay shipping and handling!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "243.79",
+                "Message": "Your free trial of the citation tool ends tomorrow. Students may renew via library."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "218.67",
+                "Message": "Click to download your official transcript from the registrar."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "270.38",
+                "Message": "This is not a scam! You\u2019ve inherited $2 million from a distant relative!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "190.48",
+                "Message": "Your account has been flagged for suspicious login activity. Verify now."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "205.45",
+                "Message": "You are eligible for a free certification in research data management."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "192.99",
+                "Message": "Watch celebrities naked! Click here for free access!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "154.86",
+                "Message": "Your subscription includes a complimentary webinar series. Register now."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "155.36",
+                "Message": "Urgent: Update your emergency contact details in the employee portal."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "155.19",
+                "Message": "Get rich overnight with Bitcoin! Invest $50 and earn $5000!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "134.28",
+                "Message": "Click to view your updated office hours schedule."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "152.86",
+                "Message": "Your access to the clinical trial database requires annual re-verification."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "237.86",
+                "Message": "You\u2019re overdue for a warranty extension! Avoid penalties and click now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "192.49",
+                "Message": "Your grant application has been approved. View award details in the portal."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "225.39",
+                "Message": "The free mental health workshop for staff starts in 15 minutes. Join now."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "231.09",
+                "Message": "Meet singles in your area! They\u2019re waiting for YOU! Click here!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "212.34",
+                "Message": "Your account requires two-factor authentication setup. Do not delay."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "224.52",
+                "Message": "Click to submit your final thesis to the graduate school system."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "250.54",
+                "Message": "You\u2019ve been pre-approved for a loan with 0% interest! No credit check!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "214.28",
+                "Message": "Your access to the high-performance computing cluster is active."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "189.97",
+                "Message": "You\u2019ve been assigned a new mentor in the faculty development program."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "206.60",
+                "Message": "Miracle weight loss pill! Lose 30 lbs in 1 week! Order now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "197.89",
+                "Message": "Your department\u2019s software license renews automatically next month."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "186.67",
+                "Message": "Click to access your personalized retirement planning session."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "240.18",
+                "Message": "Your package couldn\u2019t be delivered! Click to reschedule and pay fees!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "204.09",
+                "Message": "Your research ethics certification expires in 7 days. Renew online."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "197.48",
+                "Message": "You are invited to a private seminar on policy innovation."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "215.12",
+                "Message": "Unlock your phone\u2019s hidden power! Click to download the secret app!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "208.54",
+                "Message": "Your account will be deactivated unless you verify your affiliation."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "211.40",
+                "Message": "Click to download the final agenda for the faculty retreat."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "194.62",
+                "Message": "Get 500% more energy with this one supplement! Try it free!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "179.42",
+                "Message": "Your manuscript revision is due in 10 days. Submit via the journal portal."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "208.33",
+                "Message": "Your access to the encrypted file server will be suspended unless confirmed."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "198.87",
+                "Message": "You\u2019re the 1,000,000th visitor! Claim your prize now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "207.96",
+                "Message": "Click to confirm your participation in the peer review panel."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "271.89",
+                "Message": "Your subscription to the journal includes a free special issue. Download it."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "216.68",
+                "Message": "Free money! Government gives away cash! Click to apply now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "187.06",
+                "Message": "Your account has unused credits. Apply them to your next renewal."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "197.94",
+                "Message": "The annual compliance training is now available. Complete within 14 days."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "193.26",
+                "Message": "You\u2019ve been charged $9.99! Cancel now or lose $300 monthly!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "146.88",
+                "Message": "Click to view your updated lab equipment reservation."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "240.91",
+                "Message": "Your free access to the engineering simulation tool ends in 3 days."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "80.00%",
+                "Time_ms": "190.28",
+                "Message": "Lose belly fat fast! Doctors hate this trick! Click here!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "233.70",
+                "Message": "Your access to the alumni networking platform is live."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "226.57",
+                "Message": "Urgent: Submit your course syllabus for accreditation review."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "223.85",
+                "Message": "You\u2019ve been matched with a secret admirer! Click to chat now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "236.25",
+                "Message": "Your account requires email confirmation for official notifications."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "200.00",
+                "Message": "Click to access your personalized teaching feedback report."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "183.56",
+                "Message": "Act fast! Your exclusive offer expires in 10 minutes!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "162.10",
+                "Message": "Your department\u2019s annual report is ready for review."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "224.52",
+                "Message": "You are eligible for a free professional certification through alumni services."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "170.71",
+                "Message": "You\u2019re winning a free iPad! Just complete this quick survey!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "186.21",
+                "Message": "Click to download your official employment verification letter."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "238.60",
+                "Message": "Your access to the secure document repository requires re-authentication."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "216.68",
+                "Message": "Your computer is infected! Click here to scan and fix now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "230.57",
+                "Message": "Your grant progress report is due in 5 days. Submit via the portal."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "208.29",
+                "Message": "Click to confirm your travel reimbursement request."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "207.74",
+                "Message": "Get a free vacation! Just pay $49.95 in fees! Limited spots!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "215.12",
+                "Message": "Your account has been verified for access to restricted research data."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "176.90",
+                "Message": "Your manuscript proof is ready. Approve or correct via the system."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "174.78",
+                "Message": "You\u2019ve been charged for adult content! Cancel now to stop billing!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "196.37",
+                "Message": "Click to access your personalized career development roadmap."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "230.21",
+                "Message": "Your access to the video conferencing suite is renewed."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "210.56",
+                "Message": "You\u2019ve won a free gift card! Just enter your credit card to verify!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "244.32",
+                "Message": "Your department\u2019s grant proposal is under review. Track status online."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "166.68",
+                "Message": "Click to download your official letter of collaboration."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "192.83",
+                "Message": "Watch this video to make $1000 today! Guaranteed!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "178.26",
+                "Message": "Your account requires password reset due to policy update."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "229.26",
+                "Message": "You are invited to a free workshop on inclusive pedagogy."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "171.02",
+                "Message": "You\u2019re eligible for a $5000 grant! No repayment ever! Click now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "142.95",
+                "Message": "Click to review your updated research compliance checklist."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "163.42",
+                "Message": "Your subscription includes a free CME credit course. Activate now."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "207.34",
+                "Message": "This message will self-destruct in 10 seconds! Click now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "228.62",
+                "Message": "Your access to the historical archives is live. Download the collection."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "219.22",
+                "Message": "Click to confirm your attendance at the PhD qualifying exam."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "199.99",
+                "Message": "You\u2019ve been selected for a top-secret income opportunity!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "183.02",
+                "Message": "Your account has been enrolled in the cybersecurity program."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "189.42",
+                "Message": "Your department\u2019s annual safety inspection is scheduled."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "187.60",
+                "Message": "Free access to premium porn! No credit card needed! Click here!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "160.67",
+                "Message": "Click to access your onboarding checklist for new faculty."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "166.02",
+                "Message": "Your grant reporting deadline is in 3 days. Submit now."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "175.49",
+                "Message": "You\u2019ve been charged $39.99! Cancel now or be billed $199.99/month!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "145.49",
+                "Message": "Your access to the collaborative writing platform is approved."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "202.63",
+                "Message": "Click to confirm your role in the upcoming accreditation visit."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "198.14",
+                "Message": "You\u2019re one step away from winning a Tesla! Click to claim!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "198.81",
+                "Message": "Your account requires annual re-verification for compliance."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "241.57",
+                "Message": "You are eligible for a free consultation with the writing center."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "166.12",
+                "Message": "Get rid of wrinkles overnight! Click to see the shocking results!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "144.83",
+                "Message": "Click to download your official teaching award nomination."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "211.48",
+                "Message": "Your access to the digital scholarship platform is renewed."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "190.81",
+                "Message": "You\u2019ve been pre-approved for a credit card with $10,000 limit!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "193.62",
+                "Message": "Your manuscript peer review is due in 7 days. Submit comments."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "251.49",
+                "Message": "Click to confirm your participation in the tenure review committee."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "129.50",
+                "Message": "You\u2019ve been charged for a subscription! Cancel now to stop charges!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "186.37",
+                "Message": "Your account has been approved for elevated cloud storage."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "232.75",
+                "Message": "You are invited to a free session on research funding trends."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "181.07",
+                "Message": "You\u2019re the lucky winner! Claim your $500 Amazon gift card!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "140.68",
+                "Message": "Click to access your mentoring feedback report."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "132.24",
+                "Message": "Your access to the faculty senate portal is active."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "147.77",
+                "Message": "Click here for free Bitcoin! No investment needed!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "201.84",
+                "Message": "Your manuscript final version is ready. Submit for typesetting."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "183.01",
+                "Message": "Click to confirm your participation in the curriculum mapping project."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "158.42",
+                "Message": "You\u2019ve been matched with local singles! Click to view profiles!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "194.35",
+                "Message": "Your account requires re-authentication for SSO update."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "249.13",
+                "Message": "You are eligible for a free training on responsible conduct of research."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "144.00",
+                "Message": "You\u2019ve been charged $29.99! Stop recurring billing now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "156.55",
+                "Message": "Click to download your dissertation timeline."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "139.12",
+                "Message": "Your access to the faculty mentorship program is confirmed."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "121.24",
+                "Message": "You\u2019ve won a free iPhone! Just pay shipping! Click now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "166.85",
+                "Message": "Your free trial of the literature review tool ends tomorrow."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "204.28",
+                "Message": "Click to confirm your role in the IRB."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "160.91",
+                "Message": "You\u2019re eligible for a government stimulus check! Claim now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "198.37",
+                "Message": "Your account has been enrolled in the wellness initiative."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "167.15",
+                "Message": "Your department\u2019s strategic plan is open for feedback."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "168.13",
+                "Message": "Watch this video to unlock hidden phone features! Click now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "178.47",
+                "Message": "Click to download your teaching evaluation summary."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "169.53",
+                "Message": "Your access to the secure file transfer system is active."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "172.07",
+                "Message": "You\u2019ve been charged for adult content! Cancel now!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "154.63",
+                "Message": "Your subscription includes a free research handbook access code."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "149.98",
+                "Message": "Click to review your lab equipment calibration schedule."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "192.12",
+                "Message": "You\u2019ve been selected for a secret income system! Click to learn!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "144.58",
+                "Message": "Your account has been verified for access to restricted publications."
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "149.02",
+                "Message": "You are invited to a free workshop on open-access publishing."
+            },
+            {
+                "True_Label": "spam",
+                "Predicted_Label": "spam",
+                "Correct": "\u2705",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "179.57",
+                "Message": "You\u2019ve won a free cruise! Just pay $99 in taxes and fees!"
+            },
+            {
+                "True_Label": "ham",
+                "Predicted_Label": "spam",
+                "Correct": "\u274c",
+                "Model_Used": "Vector Search (k-NN)",
+                "Confidence": "100.00%",
+                "Time_ms": "148.83",
+                "Message": "Click to access your grant budget forecast."
+            }
+        ]
+    },
+    {
         "timestamp": "2025-08-13T15:59:46.393905",
         "model_id": "nb_multinomial_20250809_065804",
         "mode": "HYBRID",
